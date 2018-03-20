@@ -8,7 +8,7 @@ $ git clone https://github.com/UCLOrengoGroup/genome3d-openapi-client
 $ cd genome3d-openapi-client
 ```
 
-See [Troubleshooting](#Troubleshooting) if there are problems with any of the following commands
+See [Troubleshooting](#troubleshooting) if there are problems with any of the following commands
 
 ## Usage
 
@@ -116,9 +116,11 @@ Available operations:
 
 ### `Can't locate <Module>.pm in @INC ...`
 
-A number of dependencies have been included in this project. If there are issues
-accessing these dependencies on your machine then (assuming you have access to
-`cpanm`) executing the following command in the root directory should help:
+This tool is written in Perl and depends on a number of useful modules.
+These modules have been included in this project, however this error suggests
+your machine is having problems accessing them (differences in OS/architecture).
+If you have access to `cpanm`, then executing the following command 
+in the root directory of this project should help:
 
 ```
 $ cpanm -L extlib --installdeps .
