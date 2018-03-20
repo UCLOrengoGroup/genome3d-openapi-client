@@ -30,6 +30,7 @@ USAGE: genome3d-api-client [-h] [long options ...]
 
 ## Example
 
+```
 $ ./genome3d-api-client -o getDomainPrediction -u P00520 -r SUPERFAMILY
 \ [
     [0] {
@@ -54,6 +55,7 @@ $ ./genome3d-api-client -o getDomainPrediction -u P00520 -r SUPERFAMILY
         uniprot_acc     "P00520"
     }
 ]
+```
 
 ## Available Operations
 
