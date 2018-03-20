@@ -1,0 +1,9 @@
+{
+  "resource":      "<RESOURCE_ID>",
+  "username":      "<RESOURCE_USER>",
+  "password":      "<RESOURCE_SECRET>",
+  "client_id":     "contributor",
+  "client_secret": "<CLIENT_SECRET>",
+  "grant_type":    "password",
+  "scope":         [ "write:structure_prediction", "write:domain_prediction" ]
+}
