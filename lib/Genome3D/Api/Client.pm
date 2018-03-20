@@ -36,8 +36,8 @@ option operation   => ( is => 'ro', short => 'o', format => 's', predicate => 1,
 option uniprot_acc => ( is => 'ro', short => 'u', format => 's', predicate => 1, doc => "specify uniprot identifier (eg 'P00520')" );
 option resource_id => ( is => 'ro', short => 'r', format => 's', predicate => 1, doc => "specify resource identifier (eg 'SUPERFAMILY')" );
 option host        => ( is => 'ro', format => 's', predicate => 1, doc => "override the default host (eg 'localhost:5000')", default => 'head.genome3d.eu' );
-option xml_file    => ( is => 'ro', format => 's', predicate => 1, doc => 'specify xml file for domain prediction' );
-option pdb_file    => ( is => 'ro', format => 's', predicate => 1, doc => 'specify pdb file for structural prediction' );
+option xmlfile     => ( is => 'ro', format => 's', predicate => 1, doc => 'specify xml file for domain prediction' );
+option pdbfiles    => ( is => 'ro', format => 's@', predicate => 1, doc => 'specify pdb files for structural prediction' );
 
 has spec_path      => ( is => 'ro', default => '/api/openapi.json' );
 has spec_url       => ( is => 'lazy' );
