@@ -118,9 +118,11 @@ Available operations:
 
 This tool is written in Perl and depends on a number of useful modules.
 These modules have been included in this project, however this error suggests
-your machine is having problems accessing them (differences in OS/architecture).
-If you have access to `cpanm`, then executing the following command 
-in the root directory of this project should help:
+your machine is having problems accessing these dependencies (probably due to
+differences in OS/architecture).
+
+If you have access to `cpanm`, then executing the following in the root
+directory of this project should help:
 
 ```
 $ cpanm -L extlib --installdeps .
