@@ -1,12 +1,14 @@
 # genome3d-api-client
 Tool to interact with the Genome3D API
 
-## Setup
+## Installation
 
 ```
 $ git clone https://github.com/UCLOrengoGroup/genome3d-openapi-client
 $ cd genome3d-openapi-client
 ```
+
+See [Troubleshooting](#Troubleshooting) if there are problems with any of the following commands
 
 ## Usage
 
@@ -109,3 +111,18 @@ Available operations:
     params: uniprot_acc=<string> resource_id=<string> pdbfiles=<file>
 
 ```
+
+## Troubleshooting
+
+### `Can't locate <Module>.pm in @INC ...`
+
+A number of dependencies have been included in this project. If there are issues
+accessing these dependencies on your machine then (assuming you have access to
+`cpanm`) executing the following command in the root directory should help:
+
+```
+$ cpanm -L extlib --installdeps .
+```
+
+If this now works for you, then please consider submitting a PR with the
+changes in `extlib`.
