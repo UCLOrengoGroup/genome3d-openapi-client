@@ -31,7 +31,7 @@ sub _build_config {
   Genome3D::Api::Client::Config->new( $self->conf );
 }
 
-option conf        => ( is => 'ro', format => 's', predicate => 1, doc => 'override the default client config file', default => "$FindBin::Bin/../client_config.json"  );
+option conf        => ( is => 'ro', format => 's', predicate => 1, doc => 'override the default client config file', default => "$FindBin::Bin/client_config.json"  );
 option operation   => ( is => 'ro', short => 'o', format => 's', predicate => 1, doc => "specify operation (eg 'listResources')" );
 option uniprot_acc => ( is => 'ro', short => 'u', format => 's', predicate => 1, doc => "specify uniprot identifier (eg 'P00520')" );
 option resource_id => ( is => 'ro', short => 'r', format => 's', predicate => 1, doc => "specify resource identifier (eg 'SUPERFAMILY')" );
