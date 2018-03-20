@@ -17,7 +17,7 @@ USAGE: genome3d-api-client [-h] [long options ...]
     --conf=String            override the default client config file
     --host=String            override the default host (eg 'localhost:5000')
     -o --operation=String    specify operation (eg 'listResources')
-    --pdbfile=String         specify pdb file for structural prediction
+    --pdbfiles=String        specify pdb file for structural prediction
     -r --resource_id=String  specify resource identifier (eg 'SUPERFAMILY')
     -u --uniprot_acc=String  specify uniprot identifier (eg 'P00520')
     --xmlfile=String         specify xml file for domain prediction
