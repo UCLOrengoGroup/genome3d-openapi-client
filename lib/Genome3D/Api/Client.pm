@@ -89,8 +89,8 @@ sub run {
 
   my %params = (
     operation   => $operation,
-    uniprot_acc => $app->uniprot,
-    resource_id => $app->resource || $config->resource,
+    uniprot_acc => $app->uniprot_acc,
+    resource_id => $app->resource_id || $config->resource,
   );
 
   my $tx = $api->$operation( \%params );

@@ -28,6 +28,33 @@ USAGE: genome3d-api-client [-h] [long options ...]
     --man                    show the manual
 ```
 
+## Example
+
+$ ./genome3d-api-client -o getDomainPrediction -u P00520 -r SUPERFAMILY
+\ [
+    [0] {
+        domain_number   1,
+        id              1579410,
+        resource        "SUPERFAMILY",
+        type            "chopping_annotation",
+        uniprot_acc     "P00520"
+    },
+    [1] {
+        domain_number   2,
+        id              1579411,
+        resource        "SUPERFAMILY",
+        type            "chopping_annotation",
+        uniprot_acc     "P00520"
+    },
+    [2] {
+        domain_number   3,
+        id              1579412,
+        resource        "SUPERFAMILY",
+        type            "chopping_annotation",
+        uniprot_acc     "P00520"
+    }
+]
+
 ## Available Operations
 
 ```
