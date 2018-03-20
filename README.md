@@ -1,5 +1,5 @@
 # genome3d-api-client
-Tool to interact with the Genome3D API
+Tool to provide easy access with the [Genome3D](http://www.genome3d.eu) [API](http://www.genome3d.eu/api) on the command line.
 
 ## Installation
 
@@ -8,7 +8,7 @@ $ git clone https://github.com/UCLOrengoGroup/genome3d-openapi-client
 $ cd genome3d-openapi-client
 ```
 
-See [Troubleshooting](#troubleshooting) if there are problems with any of the following commands
+See [Troubleshooting](#troubleshooting) if there are problems with any of the following.
 
 ## Usage
 
@@ -117,12 +117,12 @@ Available operations:
 ### `Can't locate <Module>.pm in @INC ...`
 
 This tool is written in Perl and depends on a number of useful modules.
-These modules have been included in this project, however this error suggests
-your machine is having problems accessing these dependencies (probably due to
-differences in OS/architecture).
+These modules have been included as part of this project, however if this error
+is being reported then it suggests that your machine is having problems accessing
+these dependencies (probably due to differences in OS/architecture).
 
-If you have access to `cpanm`, then executing the following in the root
-directory of this project should help:
+If you have `cpanm`, then executing the following in the root directory of this
+project should help:
 
 ```
 $ cpanm -L extlib --installdeps .
