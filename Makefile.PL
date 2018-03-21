@@ -11,6 +11,7 @@ requires 'MooX::Options';
 requires 'Path::Tiny';
 requires 'Type::Tiny';
 requires 'Try::Tiny';
+requires 'DDP';
 
 test_requires 'Test::More' => '0.88';
 
