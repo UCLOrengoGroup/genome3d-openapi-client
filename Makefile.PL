@@ -5,7 +5,7 @@ name 'Genome3D-Api-Client';
 all_from 'lib/Genome3D/Api/Client.pm';
 
 requires 'OpenAPI::Client';
-required 'Mojo::JSON';
+requires 'Mojo::JSON';
 requires 'Moo';
 requires 'MooX::Options';
 requires 'Path::Tiny';
