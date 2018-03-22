@@ -1,17 +1,17 @@
-package Genome3D::Client::Types;
+package Genome3D::Api::Client::Types;
 
 use Type::Library
   -base,
   -declare => qw(
-    CRUDAction
+    ServerMode
     UniprotAcc
     ResourceId
   );
 use Type::Utils -all;
 use Types::Standard -types;
 
-declare CRUDAction,
-  as enum [qw/ get add update delete /];
+declare ServerMode,
+  as enum( [qw/ head daily release /] );
 
 declare UniprotAcc,
   as Str;

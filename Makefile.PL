@@ -12,7 +12,8 @@ requires 'Path::Tiny';
 requires 'Type::Tiny';
 requires 'Try::Tiny';
 requires 'DDP';
+requires 'YAML::XS';
 
 test_requires 'Test::More' => '0.88';
-
+test_requires 'Test::Trap';
 WriteAll;
