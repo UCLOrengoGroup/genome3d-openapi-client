@@ -24,7 +24,7 @@ use_ok( 'Genome3D::Api::Client' );
 {
   local @ARGV = qw/ --mode=unknown /;
   my @r = trap { Genome3D::Api::Client->new_with_options() };
-  is( $trap->exit, 1, "using unknown mode blows up as expected" );
+  is( $trap->exit, 1, "spec: --mode=unknown mode blows up as expected" );
   like( $trap->stderr, qr{unknown}, "stderr error mentions 'unknown'" );
 }
 
