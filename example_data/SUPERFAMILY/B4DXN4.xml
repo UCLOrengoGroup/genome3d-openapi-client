@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<signature-library-release-matches xmlns="http://www.ebi.ac.uk/schema/interpro" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.ebi.ac.uk/schema/interpro interpro-5.0.xsd ">
+<signature-library-release library="SCOP" version="1.75" />
+<protein>
+<sequence md5="a988355c021a042d7ced8e97e77bff9f"></sequence>
+ <xref db="UniProt" id="B4DXN4" name="0"/>
+<matches>
+<hmmer3-match evalue="1.23e-14" confidence="99.9999999999988" score="0">
+<signature ac="a.60.1.2" name= "SAM (sterile alpha motif) domain" created="" updated=""/>
+<locations>
+<hmmer3-location start="1" end="76" env-start="0" env-end="0"
+hmm-start="1" hmm-end="76"
+hmm-length="0" score="0" evalue="1.23e-14"/> 
+</locations>
+</hmmer3-match>
+<hmmer3-match evalue="1.09e-07" confidence="99.9999891" score="0">
+<signature ac="b.36.1.1" name= "PDZ domain" created="" updated=""/>
+<locations>
+<hmmer3-location start="176" end="275" env-start="0" env-end="0"
+hmm-start="4" hmm-end="98"
+hmm-length="0" score="0" evalue="1.09e-07"/> 
+</locations>
+</hmmer3-match>
+</matches>
+</protein>
+</signature-library-release-matches>
