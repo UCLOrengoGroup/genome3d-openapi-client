@@ -43,6 +43,7 @@ option resource_id => ( is => 'ro', short => 'r', format => 's', predicate => 1,
 option xmlfile     => ( is => 'ro', format => 's', predicate => 1, doc => 'specify xml file for domain prediction' );
 option pdbfiles    => ( is => 'ro', format => 's@', predicate => 1, doc => 'specify pdb files for structural prediction' );
 option host        => ( is => 'lazy', format => 's', predicate => 1, doc => "override the default host (eg 'localhost:5000')" );
+option verbose     => ( is => 'ro', short => 'v', doc => "output more details" );
 
 sub _build_conf {
   my $self = shift;
@@ -58,18 +59,21 @@ sub _build_host {
 }
 
 has spec_path      => ( is => 'ro', default => '/api/openapi.json' );
+has auth_path      => ( is => 'ro', default => '/api/oauth/access_token' );
+
 has spec_url       => ( is => 'lazy' );
+has auth_url       => ( is => 'lazy' );
 has project_dir    => ( is => 'lazy' );
 has openapi        => ( is => 'lazy' );
 
 sub _build_spec_url {
   my $self = shift;
-  my $host = $self->host;
-  my $url = Mojo::URL->new
-    ->scheme( "http" )
-    ->host( $self->host )
-    ->path( $self->spec_path );
-  return $url;
+  Mojo::URL->new->scheme( "http" )->host( $self->host )->path( $self->spec_path );
+}
+
+sub _build_auth_url {
+  my $self = shift;
+  Mojo::URL->new->scheme( "http" )->host( $self->host )->path( $self->auth_path );
 }
 
 sub _build_project_dir {
@@ -94,6 +98,9 @@ sub _build_openapi {
 
 sub run {
   my $app = shift;
+  if ( $app->verbose ) {
+    $app->log_level( $app->log_level - 1 );
+  }
 
   my $config = $app->config;
 
@@ -121,12 +128,39 @@ sub run {
   my $api = $app->openapi;
   my $operation = $app->operation;
   my $mode = $app->mode;
+  my $ua = $api->ua;
 
   if ( $operation =~ /^(add|update|delete)/mi ) {
     if ( $mode eq 'head' or $mode eq 'daily' ) {
       # login
-      my $resource = $app->config->resource;
-      die "! Error: need to implement login";
+      my $client_params = $app->config->as_oauth_hashref;
+
+      # clear any previous events (otherwise it will just append)
+      $ua->unsubscribe('start');
+
+      # authenticate, get an access token
+      my $tx = $ua->post( $app->auth_url, form => $client_params );
+      if ( $tx->res->is_error ) {
+        die "! Error: Sorry, there was an error trying to authenticate this client. Please check the details in the config file and try again:\n"
+          . "    CONFIG:   " . $app->conf . "\n"
+          . "    URL:      " . $app->auth_url . "\n"
+          . "    RESPONSE: " . $tx->res->body . "\n"
+          ;
+      }
+      my $access_token = $tx->res->json->{access_token} // '';
+
+      # add the access token to every subsequent request
+      $ua->on(start => sub {
+        my ($ua, $tx) = @_;
+        $tx->req->headers->header( Authorization => "Bearer $access_token" );
+      });
+
+      # my $upload_data = {
+      #   xmlfile => [ { file => $xml_file } ],
+      # };
+      # $ua->put_ok($put_url => form => $upload_data);
+
+      #die "! Error: need to implement login";
     }
     else {
       die "! Error: the operation '$operation' will try to modify the backend database. Only 'read' operations are allowed in server mode '$mode' (try --mode=daily or --mode=head)\n",
@@ -140,8 +174,15 @@ sub run {
   );
 
   my $tx = $api->$operation( \%params );
+  $app->log_debug( "REQUEST.URL:      " . $tx->req->url );
+  $app->log_debug( "REQUEST.PARAMS:   " . $tx->req->params->to_string );
+  $app->log_debug( "REQUEST.BODY:     " . $tx->req->body );
+  $app->log_debug( "REQUEST.HEADERS:  " . $tx->req->headers->to_string );
+  $app->log_debug( "RESPONSE.CODE:    " . $tx->res->code );
+  $app->log_debug( "RESPONSE.MESSAGE: " . $tx->res->message );
+  $app->log_debug( "RESPONSE.BODY:    " . $tx->res->body );
   if ( $tx->res->is_error ) {
-    warn sprintf( "[%d] ERROR: %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 50 ) );
+    warn sprintf( "[%d] ERROR: %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 100 ) );
   }
   else {
     my $data = decode_json( $tx->res->body );
