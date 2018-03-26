@@ -1120,3 +1120,25 @@ C<EXE_FILES: >
 
 =back
 
+=head2 Mon Mar 26 00:01:12 2018: C<Module> L<YAML::LibYAML|YAML::LibYAML>
+
+=over 4
+
+=item *
+
+C<installed into: /cath/homes2/ucbcisi/git/genome3d-openapi-client/extlib/lib/perl5>
+
+=item *
+
+C<LINKTYPE: dynamic>
+
+=item *
+
+C<VERSION: 0.69>
+
+=item *
+
+C<EXE_FILES: >
+
+=back
+
