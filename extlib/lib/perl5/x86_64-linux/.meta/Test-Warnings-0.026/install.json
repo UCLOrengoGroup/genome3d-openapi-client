@@ -1,1 +1,1 @@
-{"provides":{"Test::Warnings":{"version":"0.026","file":"lib/Test/Warnings.pm"}},"target":"Test::Warnings","version":"0.026","name":"Test::Warnings","dist":"Test-Warnings-0.026","pathname":"E/ET/ETHER/Test-Warnings-0.026.tar.gz"}
+{"pathname":"E/ET/ETHER/Test-Warnings-0.026.tar.gz","name":"Test::Warnings","provides":{"Test::Warnings":{"file":"lib/Test/Warnings.pm","version":"0.026"}},"dist":"Test-Warnings-0.026","version":"0.026","target":"Test::Warnings"}

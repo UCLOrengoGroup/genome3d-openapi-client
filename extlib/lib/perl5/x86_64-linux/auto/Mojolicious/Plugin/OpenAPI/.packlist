@@ -1,9 +1,11 @@
-/cath/homes2/ucbcisi/.plenv/versions/5.12.5/lib/perl5/site_perl/5.12.5/Mojolicious/Plugin/OpenAPI.pm
-/cath/homes2/ucbcisi/.plenv/versions/5.12.5/lib/perl5/site_perl/5.12.5/Mojolicious/Plugin/OpenAPI/Guides/Swagger2.pod
-/cath/homes2/ucbcisi/.plenv/versions/5.12.5/lib/perl5/site_perl/5.12.5/Mojolicious/Plugin/OpenAPI/Guides/Tutorial.pod
-/cath/homes2/ucbcisi/.plenv/versions/5.12.5/man/man3/Mojolicious::Plugin::OpenAPI.3
-/cath/homes2/ucbcisi/.plenv/versions/5.12.5/man/man3/Mojolicious::Plugin::OpenAPI::Guides::Swagger2.3
-/cath/homes2/ucbcisi/.plenv/versions/5.12.5/man/man3/Mojolicious::Plugin::OpenAPI::Guides::Tutorial.3
+/cath/homes2/ucbcisi/.plenv/versions/5.26.0/lib/perl5/site_perl/5.26.0/Mojolicious/Plugin/OpenAPI.pm
+/cath/homes2/ucbcisi/.plenv/versions/5.26.0/lib/perl5/site_perl/5.26.0/Mojolicious/Plugin/OpenAPI/Guides/Swagger2.pod
+/cath/homes2/ucbcisi/.plenv/versions/5.26.0/lib/perl5/site_perl/5.26.0/Mojolicious/Plugin/OpenAPI/Guides/Tutorial.pod
+/cath/homes2/ucbcisi/.plenv/versions/5.26.0/lib/perl5/site_perl/5.26.0/Mojolicious/Plugin/OpenAPI/Security.pm
+/cath/homes2/ucbcisi/.plenv/versions/5.26.0/man/man3/Mojolicious::Plugin::OpenAPI.3
+/cath/homes2/ucbcisi/.plenv/versions/5.26.0/man/man3/Mojolicious::Plugin::OpenAPI::Guides::Swagger2.3
+/cath/homes2/ucbcisi/.plenv/versions/5.26.0/man/man3/Mojolicious::Plugin::OpenAPI::Guides::Tutorial.3
+/cath/homes2/ucbcisi/.plenv/versions/5.26.0/man/man3/Mojolicious::Plugin::OpenAPI::Security.3
 /cath/homes2/ucbcisi/git/genome3d-openapi-client/extlib/lib/perl5/Mojolicious/Plugin/OpenAPI.pm
 /cath/homes2/ucbcisi/git/genome3d-openapi-client/extlib/lib/perl5/Mojolicious/Plugin/OpenAPI/Guides/Swagger2.pod
 /cath/homes2/ucbcisi/git/genome3d-openapi-client/extlib/lib/perl5/Mojolicious/Plugin/OpenAPI/Guides/Tutorial.pod

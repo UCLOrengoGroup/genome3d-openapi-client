@@ -1,4 +1,4 @@
-#!/cath/homes2/ucbcisi/.plenv/versions/5.12.5/bin/perl5.12.5 
+#!/usr/bin/perl 
 
 use strict;
 use Module::Build 0.25;

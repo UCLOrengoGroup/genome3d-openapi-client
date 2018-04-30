@@ -1,4 +1,4 @@
-#!/Users/ian/perl5/perlbrew/perls/perl-5.22.2/bin/perl
+#!/usr/bin/perl
 
 use strict;
 use warnings;
