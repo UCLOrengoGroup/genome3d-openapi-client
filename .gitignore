@@ -3,3 +3,4 @@ MYMETA.json
 MYMETA.yml
 Makefile
 *_local.json
+^client_config.superfamily.json
