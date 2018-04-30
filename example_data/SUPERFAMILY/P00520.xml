@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<signature-library-release-matches xmlns="http://www.ebi.ac.uk/schema/interpro" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.ebi.ac.uk/schema/interpro interpro-5.0.xsd ">
+<signature-library-release library="SCOP" version="1.75" />
+<protein>
+<sequence md5="df6d725ffa0a2507f187090003aaf1be"></sequence>
+ <xref db="UniProt" id="P00520" name="0"/>
+<matches>
+<hmmer3-match evalue="2.02e-84" confidence="100" score="0">
+<signature ac="d.144.1.7" name= "Protein kinases, catalytic subunit" created="" updated=""/>
+<locations>
+<hmmer3-location start="231" end="498" env-start="0" env-end="0"
+hmm-start="6" hmm-end="273"
+hmm-length="0" score="0" evalue="2.02e-84"/> 
+</locations>
+</hmmer3-match>
+<hmmer3-match evalue="5.25e-20" confidence="100" score="0">
+<signature ac="b.34.2.1" name= "SH3-domain" created="" updated=""/>
+<locations>
+<hmmer3-location start="62" end="147" env-start="0" env-end="0"
+hmm-start="4" hmm-end="87"
+hmm-length="0" score="0" evalue="5.25e-20"/> 
+</locations>
+</hmmer3-match>
+<hmmer3-match evalue="1.88e-37" confidence="100" score="0">
+<signature ac="d.93.1.1" name= "SH2 domain" created="" updated=""/>
+<locations>
+<hmmer3-location start="122" end="262" env-start="0" env-end="0"
+hmm-start="2" hmm-end="128"
+hmm-length="0" score="0" evalue="1.88e-37"/> 
+</locations>
+</hmmer3-match>
+</matches>
+</protein>
+</signature-library-release-matches>
