@@ -20,13 +20,14 @@ use FindBin;
 use MooX::Options;
 use Mojo::JSON 'decode_json';
 use Mojo::URL;
+use JSON::MaybeXS 'JSON';
 use OpenAPI::Client;
 use Path::Tiny;
 use Test::Trap;
 use DDP;
 
 use Genome3D::Api::Client::Config;
-use Genome3D::Api::Client::Types qw/ ServerMode /;
+use Genome3D::Api::Client::Types qw/ ServerMode OutputFormat /;
 
 has log_level => ( is => 'rw', default => 3 );
 has config => ( is => 'lazy' );
@@ -35,14 +36,24 @@ sub _build_config {
   Genome3D::Api::Client::Config->new( $self->conf );
 }
 
-option mode        => ( is => 'ro', isa => ServerMode, format => 's', predicate => 1, default => "daily", doc => "specify the mode for the data source ([daily] | head | release)" );
-option conf        => ( is => 'lazy', format => 's', predicate => 1, doc => 'override the default client config file' );
-option operation   => ( is => 'ro', short => 'o', format => 's', predicate => 1, doc => "specify operation (eg 'listResources')" );
-option uniprot_acc => ( is => 'ro', short => 'u', format => 's', predicate => 1, doc => "specify uniprot identifier (eg 'P00520')" );
-option resource_id => ( is => 'ro', short => 'r', format => 's', predicate => 1, doc => "specify resource identifier (eg 'SUPERFAMILY')" );
-option xmlfile     => ( is => 'ro', format => 's', predicate => 1, doc => 'specify xml file for domain prediction' );
-option pdbfiles    => ( is => 'ro', format => 's@', predicate => 1, doc => 'specify pdb files for structural prediction' );
-option host        => ( is => 'lazy', format => 's', predicate => 1, doc => "override the default host (eg 'localhost:5000')" );
+has json_out => ( is => 'lazy' );
+sub _build_json_out {
+  my $self = shift;
+  my %args = ( utf8 => 1 );
+  $args{ pretty } = 1 if $self->out_format eq 'json_pp';
+  return JSON::MaybeXS->new( %args );
+}
+
+option out_format  => ( is => 'lazy',             format => 's',  isa => OutputFormat, default => 'json', doc => 'override the output format ([json_pp] | json)' );
+option mode        => ( is => 'ro',               format => 's',  isa => ServerMode, predicate => 1, default => "daily", doc => "specify the mode for the data source ([daily] | head | release)" );
+option conf        => ( is => 'lazy',             format => 's',  predicate => 1, doc => 'override the default client config file' );
+option operation   => ( is => 'ro', short => 'o', format => 's',  predicate => 1, doc => "specify operation (eg 'listResources')" );
+option uniprot_acc => ( is => 'ro', short => 'u', format => 's',  predicate => 1, doc => "specify uniprot identifier (eg 'P00520')" );
+option resource_id => ( is => 'ro', short => 'r', format => 's',  predicate => 1, doc => "specify resource identifier (eg 'SUPERFAMILY')" );
+option xmlfile     => ( is => 'ro',               format => 's',  predicate => 1, doc => 'specify xml file for domain prediction' );
+option pdbfiles    => ( is => 'ro',               format => 's@', predicate => 1, doc => 'specify pdb files for structural prediction' );
+option host        => ( is => 'lazy',             format => 's',  predicate => 1, doc => "override the default host (eg 'localhost:5000')" );
+option base_path   => ( is => 'ro',               format => 's',  default => '/api', doc => "override the default base path (eg '/api')" );
 option verbose     => ( is => 'ro', short => 'v', doc => "output more details" );
 
 sub _build_conf {
@@ -58,8 +69,8 @@ sub _build_host {
   return join( '.', $self->mode, 'genome3d.eu' );
 }
 
-has spec_path      => ( is => 'ro', default => '/api/openapi.json' );
-has auth_path      => ( is => 'ro', default => '/api/oauth/access_token' );
+has spec_path      => ( is => 'ro', default => '/openapi.json' );
+has auth_path      => ( is => 'ro', default => '/oauth/access_token' );
 
 has spec_url       => ( is => 'lazy' );
 has auth_url       => ( is => 'lazy' );
@@ -68,12 +79,12 @@ has openapi        => ( is => 'lazy' );
 
 sub _build_spec_url {
   my $self = shift;
-  Mojo::URL->new->scheme( "http" )->host( $self->host )->path( $self->spec_path );
+  Mojo::URL->new->scheme( "http" )->host( $self->host )->path( $self->base_path . $self->spec_path );
 }
 
 sub _build_auth_url {
   my $self = shift;
-  Mojo::URL->new->scheme( "http" )->host( $self->host )->path( $self->auth_path );
+  Mojo::URL->new->scheme( "http" )->host( $self->host )->path( $self->base_path . $self->auth_path );
 }
 
 sub _build_project_dir {
@@ -104,9 +115,12 @@ sub run {
 
   my $config = $app->config;
 
+  $app->log_info( _kv( "APP.OPENAPI_SPEC", $app->spec_url ) );
+
   trap { $app->openapi->validator };
   if ( $trap->die ) {
-    die "Error: failed to get valid OpenAPI specification from URL: " . $app->spec_url . " (ERR: $_)";
+    my $err = $trap->die;
+    die "Error: failed to get valid OpenAPI specification from URL: " . $app->spec_url . " (ERR: $err)";
   }
 
   if ( ! $app->has_operation ) {
@@ -129,6 +143,14 @@ sub run {
   my $operation = $app->operation;
   my $mode = $app->mode;
   my $ua = $api->ua;
+
+  $app->log_info( _kv( "APP.MODE", uc( $mode ) ) );
+
+  my %params = (
+    operation   => $operation,
+    uniprot_acc => $app->uniprot_acc,
+    resource_id => $app->resource_id || $config->resource,
+  );
 
   if ( $operation =~ /^(add|update|delete)/mi ) {
     if ( $mode eq 'head' or $mode eq 'daily' ) {
@@ -155,11 +177,6 @@ sub run {
         $tx->req->headers->header( Authorization => "Bearer $access_token" );
       });
 
-      # my $upload_data = {
-      #   xmlfile => [ { file => $xml_file } ],
-      # };
-      # $ua->put_ok($put_url => form => $upload_data);
-
       #die "! Error: need to implement login";
     }
     else {
@@ -167,27 +184,50 @@ sub run {
     }
   }
 
-  my %params = (
-    operation   => $operation,
-    uniprot_acc => $app->uniprot_acc,
-    resource_id => $app->resource_id || $config->resource,
-  );
+  if ( $app->has_xmlfile ) {
+    my $xml_file = $app->xmlfile;
+    $params{ xmlfile } = [ { file => $xml_file } ];
+  }
+  if ( $app->has_pdbfiles ) {
+    $params{ pdbfiles } = [ map { { file => $_ } } @{ $app->pdbfiles } ];
+  }
+
+  $app->log_info( _kv( "REQUEST.OPERATION", $operation ) );
+  $app->log_info( _kv( "REQUEST.DATA", JSON::MaybeXS->new( utf8 => 1, pretty => 0 )->encode( \%params ) ) );
 
   my $tx = $api->$operation( \%params );
-  $app->log_debug( "REQUEST.URL:      " . $tx->req->url );
+
+  $app->log_info( _kv( "REQUEST.URL", $tx->req->url ) );
+
   $app->log_debug( "REQUEST.PARAMS:   " . $tx->req->params->to_string );
   $app->log_debug( "REQUEST.BODY:     " . $tx->req->body );
   $app->log_debug( "REQUEST.HEADERS:  " . $tx->req->headers->to_string );
   $app->log_debug( "RESPONSE.CODE:    " . $tx->res->code );
   $app->log_debug( "RESPONSE.MESSAGE: " . $tx->res->message );
   $app->log_debug( "RESPONSE.BODY:    " . $tx->res->body );
+
   if ( $tx->res->is_error ) {
     warn sprintf( "[%d] ERROR: %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 100 ) );
+    return;
   }
   else {
-    my $data = decode_json( $tx->res->body );
-    print np( $data ), "\n";
+    my $body = decode_json( $tx->res->body );
+    if ( ref $body eq 'HASH' ) {
+      $app->log_info( _kv( "RESPONSE.MESSAGE", $body->{message} ) );  
+      if ( $app->out_format =~ /^json/i ) {
+        $app->log_info( _kv( "RESPONSE.DATA", $app->json_out->encode( $body->{data} ) ) );
+      }
+    }
+    else {
+      $app->log_info( _kv( "RESPONSE.MESSAGE", "Response did not contain 'message' field" ) );
+      $app->log_info( _kv( "RESPONSE.BODY", substr( $body, 0, 50 ) . ' ...' ) );
+    }
+    return $body;
   }
+}
+
+sub _kv {
+  sprintf( "%-30s %s", @_ );
 }
 
 # https://metacpan.org/source/JHTHORSEN/OpenAPI-Client-0.15/lib/OpenAPI/Client.pm#L86
@@ -223,7 +263,7 @@ sub log_msg {
   my ($self, $level, $msg) = @_;
   my @levels = qw/ trace debug info warn error /;
   if ( $level >= $self->log_level ) {
-    printf "%s %6s %s\n", localtime() . "", uc( $levels[$level-1] ), $msg;
+    printf "%s %6s | %s\n", localtime() . "", uc( $levels[$level-1] ), $msg;
   }
 }
 

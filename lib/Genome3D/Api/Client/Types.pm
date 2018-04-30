@@ -6,12 +6,16 @@ use Type::Library
     ServerMode
     UniprotAcc
     ResourceId
+    OutputFormat
   );
 use Type::Utils -all;
 use Types::Standard -types;
 
 declare ServerMode,
   as enum( [qw/ head daily release /] );
+
+declare OutputFormat,
+  as enum( [qw/ json json_pp /] );
 
 declare UniprotAcc,
   as Str;
