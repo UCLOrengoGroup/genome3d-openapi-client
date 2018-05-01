@@ -44,17 +44,37 @@ sub _build_json_out {
   return JSON::MaybeXS->new( %args );
 }
 
-option out_format  => ( is => 'lazy',             format => 's',  isa => OutputFormat, default => 'json', doc => 'override the output format ([json_pp] | json)' );
-option mode        => ( is => 'ro',               format => 's',  isa => ServerMode, predicate => 1, default => "daily", doc => "specify the mode for the data source ([daily] | head | release)" );
-option conf        => ( is => 'lazy',             format => 's',  predicate => 1, doc => 'override the default client config file' );
-option operation   => ( is => 'ro', short => 'o', format => 's',  predicate => 1, doc => "specify operation (eg 'listResources')" );
-option uniprot_acc => ( is => 'ro', short => 'u', format => 's',  predicate => 1, doc => "specify uniprot identifier (eg 'P00520')" );
-option resource_id => ( is => 'ro', short => 'r', format => 's',  predicate => 1, doc => "specify resource identifier (eg 'SUPERFAMILY')" );
-option xmlfile     => ( is => 'ro',               format => 's',  predicate => 1, doc => 'specify xml file for domain prediction' );
-option pdbfiles    => ( is => 'ro',               format => 's@', predicate => 1, doc => 'specify pdb files for structural prediction' );
-option host        => ( is => 'lazy',             format => 's',  predicate => 1, doc => "override the default host (eg 'localhost:5000')" );
-option base_path   => ( is => 'ro',               format => 's',  default => '/api', doc => "override the default base path (eg '/api')" );
-option verbose     => ( is => 'ro', short => 'v', doc => "output more details" );
+option mode        => ( is => 'ro',               format => 's',  isa => ServerMode, predicate => 1, default => "daily", doc => "specify the mode for the data source\t(daily|head|release) [daily]", 
+  order => 10, spacer_after => 1 );
+
+option list        => ( is => 'ro', short => 'l', doc => "list all the available operations", 
+  order => 20, spacer_after => 1 );
+
+option operation   => ( is => 'ro', short => 'o', format => 's',  predicate => 1, doc => "specify operation (eg 'listResources')",
+  order => 30 );
+option uniprot_acc => ( is => 'ro', short => 'u', format => 's',  predicate => 1, doc => "specify uniprot identifier (eg 'P00520')",
+  order => 30 );
+option resource_id => ( is => 'ro', short => 'r', format => 's',  predicate => 1, doc => "specify resource identifier (eg 'SUPERFAMILY')",
+  order => 30 );
+option pdbfiles    => ( is => 'ro',               format => 's@', predicate => 1, doc => 'specify pdb files for structural prediction',
+  order => 30 );
+option xmlfile     => ( is => 'ro',               format => 's',  predicate => 1, doc => 'specify xml file for domain prediction',
+  order => 30, spacer_after => 1 );
+
+option base_path   => ( is => 'ro',               format => 's',  default => '/api', doc => "override the default base path [/api])",
+  order => 50 );
+option conf        => ( is => 'lazy',             format => 's',  predicate => 1, doc => 'override the default config file [client_config.json]',
+  order => 50 );
+option host        => ( is => 'lazy',             format => 's',  predicate => 1, doc => "override the default host (eg 'localhost:5000')",
+  order => 50, spacer_after => 1 );
+option out_format  => ( is => 'lazy',             format => 's',  isa => OutputFormat, default => 'json', doc => 'override the output format ([json_pp] | json)', 
+  order => 50, hidden => 1 );
+
+option quiet       => ( is => 'ro', short => 'q', doc => "output fewer details",
+  order => 60 ); 
+option verbose     => ( is => 'ro', short => 'v', doc => "output more details",
+  order => 60 ); 
+
 
 sub _build_conf {
   my $self = shift;
@@ -91,7 +111,7 @@ sub _build_project_dir {
   my $self = shift;
   my $dir = path('.')->absolute;
   for (1 .. 3) {
-    return $dir if -f $dir->child('genome3d-api-client');
+    return $dir if -f $dir->child( path($0)->basename );
     $dir = $dir->parent;
   }
   die "! Error: failed to find project directory (looking for the script 'genome3d-api-client')";
@@ -112,10 +132,11 @@ sub run {
   if ( $app->verbose ) {
     $app->log_level( $app->log_level - 1 );
   }
+  if ( $app->quiet ) {
+    $app->log_level( $app->log_level + 1 );
+  }
 
   my $config = $app->config;
-
-  $app->log_info( _kv( "APP.OPENAPI_SPEC", $app->spec_url ) );
 
   trap { $app->openapi->validator };
   if ( $trap->die ) {
@@ -123,7 +144,7 @@ sub run {
     die "Error: failed to get valid OpenAPI specification from URL: " . $app->spec_url . " (ERR: $err)";
   }
 
-  if ( ! $app->has_operation ) {
+  if ( $app->list ) {
     my $operations = $app->list_all_operation_info;
     print "\n";
     print "Available operations:\n";
@@ -139,20 +160,32 @@ sub run {
     return;
   }
 
+  if ( ! $app->has_operation ) {
+    $app->options_short_usage();
+    return;
+  }
+
   my $api = $app->openapi;
   my $operation = $app->operation;
   my $mode = $app->mode;
   my $ua = $api->ua;
 
+  $app->log_info( _kv( "APP.OPENAPI_SPEC", $app->spec_url ) );
   $app->log_info( _kv( "APP.MODE", uc( $mode ) ) );
 
   my %params = (
     operation   => $operation,
     uniprot_acc => $app->uniprot_acc,
-    resource_id => $app->resource_id || $config->resource,
+    ($app->has_resource_id ? ( resource_id => $app->resource_id ) : () ),
   );
 
   if ( $operation =~ /^(add|update|delete)/mi ) {
+
+    if ( ! exists $params{resource_id} ) {
+      $params{resource_id} = $config->resource;
+      $app->log_debug( _kv( "APP.RESOURCE_FROM_CONFIG", $params{resource_id} ) );
+    }
+
     if ( $mode eq 'head' or $mode eq 'daily' ) {
       # login
       my $client_params = $app->config->as_oauth_hashref;
