@@ -29,6 +29,8 @@ use DDP;
 use Genome3D::Api::Client::Config;
 use Genome3D::Api::Client::Types qw/ ServerMode OutputFormat /;
 
+our $VERSION = '0.01';
+
 has log_level => ( is => 'rw', default => 3 );
 has config => ( is => 'lazy' );
 sub _build_config {

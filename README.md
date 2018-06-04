@@ -1,11 +1,9 @@
 # Genome3D API Client
 Tool to provide easy access with the [Genome3D](http://www.genome3d.eu) [API](http://www.genome3d.eu/api) on the command line.
 
-**Current Status: Request For Comments (RFC)**
+Please regularly update your local repository to get the latest changes.
 
-This project is currently in a "Request For Comments" phase. **As such all code, backend API and data may be changed without notice and should not be included in production code (yet)**. Please regularly update your local repository to get the latest changes. At the end of the **RFC** phase, a stable version will be released for **BETA** testing.
-
-Please log problems and feature requests as GitHub Issues.
+Please log problems, suggestions, feature requests as GitHub Issues.
 
 ## Getting started
 
