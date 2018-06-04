@@ -5,3 +5,4 @@ Makefile
 *_local.json
 client_config.superfamily.json
 .perl-version
+secret
