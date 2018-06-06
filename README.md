@@ -168,6 +168,12 @@ $ cpanm -L extlib --installdeps .
 
 If this now works for you, then please consider submitting a PR with the changes in `./extlib`.
 
+If you do not have `cpanm` but have `cpan`, you can install `cpanm` as follows:
+
+```
+$ cpan -i App::cpanminus
+```
+
 ### `Sorry, there was an error trying to authentication this client...`
 
 Any operation that involves 'writing' data to the Genome3D server requires authentication (to prove you have 
