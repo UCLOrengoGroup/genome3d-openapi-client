@@ -242,7 +242,7 @@ sub run {
   $app->log_debug( "RESPONSE.BODY:    " . $tx->res->body );
 
   if ( $tx->res->is_error ) {
-    warn sprintf( "[%d] ERROR: %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 100 ) );
+    warn sprintf( "[%d] ERROR: %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 250 ) );
     return;
   }
   else {
