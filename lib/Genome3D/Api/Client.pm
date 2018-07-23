@@ -31,6 +31,9 @@ use Genome3D::Api::Client::Types qw/ ServerMode OutputFormat /;
 
 our $VERSION = '0.01';
 
+# this is used to find the root directory of this mojo project
+my $API_SCRIPT_FILENAME = 'genome3d-api';
+
 has log_level => ( is => 'rw', default => 3 );
 has config => ( is => 'lazy' );
 sub _build_config {
@@ -112,11 +115,13 @@ sub _build_auth_url {
 sub _build_project_dir {
   my $self = shift;
   my $dir = path('.')->absolute;
+  my $log = $self->log_debug( "Searching for project directory... (cwd: ".(path($0)).")" );
   for (1 .. 3) {
-    return $dir if -f $dir->child( path($0)->basename );
+    return $dir if -f $dir->child( $API_SCRIPT_FILENAME );
     $dir = $dir->parent;
+    $self->log_debug( "  ... currently in $dir (can't find $API_SCRIPT_FILENAME)" );
   }
-  die "! Error: failed to find project directory (looking for the script 'genome3d-api-client')";
+  die "! Error: failed to find project directory (looking for the script '$API_SCRIPT_FILENAME')";
 }
 
 sub _build_openapi {
