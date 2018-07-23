@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<signature-library-release-matches xmlns="http://www.ebi.ac.uk/schema/interpro" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.ebi.ac.uk/schema/interpro/interpro-5.0.xsd">
+<signature-library-release library="SCOP" version="1.75" />
+<protein>
+<sequence md5="c0c8e74375e9f1afabf20a89c8cae342"></sequence>
+ <xref db="UniProt" id="V5QRX7" name="3098A_MYCTU"/>
+<matches>
+<hmmer3-match score="0" evalue="3.92e-19" confidence="100.0">
+<signature ac="b.34.6.2" created="" updated=""/>
+<locations>
+<hmmer3-location start="4" end="105"
+hmm-start="8" hmm-end="103" hmm-length="110" score="0" evalue="3.92e-19"/> 
+</locations>
+</hmmer3-match>
+</matches>
+</protein>
+</signature-library-release-matches>
