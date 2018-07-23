@@ -179,6 +179,11 @@ $ cpan -i App::cpanminus
 Any operation that involves 'writing' data to the Genome3D server requires authentication (to prove you have 
 appropriate permissions to add/update/delete data). See the [authentication section](#authentication).
 
+## Contributors
+
+ * Ian Sillitoe
+ * Arun Prasad
+
 
 ## Acknowledgements
 
