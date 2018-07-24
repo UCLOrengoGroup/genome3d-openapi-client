@@ -181,9 +181,9 @@ appropriate permissions to add/update/delete data). See the [authentication sect
 
 ## Contributors
 
- * Ian Sillitoe
- * Arun Prasad
-
+ * Ian Sillitoe (author)
+ * Gerardo Tauriello
+ * Arun Prasad Pandurangan
 
 ## Acknowledgements
 
