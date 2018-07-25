@@ -23,6 +23,7 @@ use Mojo::URL;
 use JSON::MaybeXS 'JSON';
 use OpenAPI::Client;
 use Path::Tiny;
+use Try::Tiny;
 use Test::Trap;
 use DDP;
 
@@ -115,7 +116,7 @@ sub _build_auth_url {
 sub _build_project_dir {
   my $self = shift;
   my $dir = path('.')->absolute;
-  my $log = $self->log_debug( "Searching for project directory... (cwd: ".(path($0)).")" );
+  my $log = $self->log_debug( "Searching for project directory... (cwd: $dir)" );
   for (1 .. 3) {
     return $dir if -f $dir->child( $API_SCRIPT_FILENAME );
     $dir = $dir->parent;
@@ -235,7 +236,16 @@ sub run {
   $app->log_info( _kv( "REQUEST.OPERATION", $operation ) );
   $app->log_info( _kv( "REQUEST.DATA", JSON::MaybeXS->new( utf8 => 1, pretty => 0 )->encode( \%params ) ) );
 
-  my $tx = $api->$operation( \%params );
+  my $tx = try { $api->$operation( \%params ) }
+  catch {
+    if ( $_ =~ /can't locate object method/i ) {
+      $app->log_error( "ERROR: '$operation' is not a valid operation name (use --list to provide a list of available operations)" );
+    }
+    else {
+      $app->log_error( "ERROR: $_" );
+    }
+    exit(1);
+  };
 
   $app->log_info( _kv( "REQUEST.URL", $tx->req->url ) );
 
