@@ -14,11 +14,15 @@ my $conf_file = path( $FindBin::Bin, '..', 'client_config.superfamily.json' );
 
 subtest 'update chopping_annotation without error' => sub {
     local @ARGV = qw/ 
-        --mode=daily 
         --operation=updateDomainPrediction 
         --uniprot_acc=V5QRX7 
         --resource_id=SUPERFAMILY 
     /;
+    my $mode = $ENV{GENOME3D_TEST_MODE} //= "daily";
+    if ( $mode ne 'daily' ) {
+        diag( "WARNING: test is using mode '$mode' (rather than 'daily')");
+    }
+    push @ARGV, "--mode=$mode"; 
     push @ARGV, "--conf=$conf_file";
     push @ARGV, "--xmlfile=$xml_file";
 
