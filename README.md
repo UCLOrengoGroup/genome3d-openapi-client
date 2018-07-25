@@ -86,9 +86,9 @@ List all available operations
 
 | Mode | Role | Read/Write | Description | Web |
 |--|--|--|--|--|
-| `daily` *(default)* | TESTING | Read/Write | Updated every day from `head` | [link](daily.genome3d.eu) |
-| `head` | LIVE | Read/Write | Contains data that will make it into the next release | [link](head.genome3d.eu) |
-| `latest` | RELEASE | Read Only | Contains data from the most recent release (ie the data currently available on the main Genome3D web site) | [link](www.genome3d.eu) |
+| `daily` *(default)* | TESTING | Read/Write | Updated every day from `head` | [link](http://daily.genome3d.eu) |
+| `head` | LIVE | Read/Write | Contains data that will make it into the next release | [link](http://head.genome3d.eu) |
+| `latest` | RELEASE | Read Only | Contains data from the most recent release (ie the data currently available on the main Genome3D web site) | [link](http://www.genome3d.eu) |
 
 Note: corresponding web pages are available for each of these modes (web link above).
 
