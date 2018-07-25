@@ -109,10 +109,10 @@ Specify which resource to use (you can *read* data from any resource, but you ca
 $ ./genome3d-api -o getDomainPrediction -u P00520 -r SUPERFAMILY
 ```
 
-#### Upload 3D structural predictions (based on the UniProtKB accession `P00520`) to the Genome3D server:
+#### Upload 3D structure predictions (based on the UniProtKB accession `P00520`) to the Genome3D server:
 
 ```
-$ ./genome3d-api -o updateStructuralPrediction -u P00520 -r SUPERFAMILY \
+$ ./genome3d-api -o updateStructurePrediction -u P00520 -r SUPERFAMILY \
   --pdbfiles=./example_data/SUPERFAMILY/P00520_62_147.pdb \
   --pdbfiles=./example_data/SUPERFAMILY/P00520_122_262.pdb \
 ```
