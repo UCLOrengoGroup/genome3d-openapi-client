@@ -20,7 +20,10 @@ $ ./genome3d-api --help
 
 #### Dependencies
 
-This project aims to work as a standalone tool: the only dependency should be having access to a relatively modern version of Perl. If running the command above produces an error, then head over to the [Troubleshooting](#Troubleshooting) section or create an issue in GitHub.
+This project aims to work as a standalone tool: the only dependency should be having access to a relatively modern version of Perl. If running the command above produces an error, then head over to the [Troubleshooting](#Troubleshooting) section or create an issue in GitHub. There is a hard requirement for the following modules.
+
+1. Getopt::Long version must be >2.4
+2. Params::Validate and Param::Util must be installed.
 
 ## Overview
 
