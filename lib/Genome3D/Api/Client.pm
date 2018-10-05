@@ -30,7 +30,7 @@ use DDP;
 use Genome3D::Api::Client::Config;
 use Genome3D::Api::Client::Types qw/ ServerMode OutputFormat /;
 
-our $VERSION = '0.02';
+our $VERSION = '0.04';
 
 # this is used to find the root directory of this mojo project
 my $API_SCRIPT_FILENAME = 'genome3d-api';
@@ -187,29 +187,34 @@ sub run {
     return;
   }
 
-  my $api = $app->openapi;
   my $operation = $app->operation;
   my $mode = $app->mode;
-  my $ua = $api->ua;
 
   $app->log_info( _kv( "APP.OPENAPI_SPEC", $app->spec_url ) );
   $app->log_info( _kv( "APP.MODE", uc( $mode ) ) );
 
-  my %params = (
-    operation   => $operation,
-  );
+  $app->_setup_headers();
 
-  $params{resource_id} = $app->resource_id if $app->has_resource_id;
-  $params{uniprot_acc} = $app->uniprot_acc if $app->has_uniprot_acc;
+  my $params_per_uniprot = $app->_build_params_per_uniprot();
+
+  foreach my $uniprot_acc (keys %$params_per_uniprot ) {
+    my $params = $params_per_uniprot->{ $uniprot_acc };
+    $app->_send_data( $params );
+  }
+  $app->log_info( "DONE" );
+}
+
+sub _setup_headers {
+  my $app = shift;
+
+  my $operation = $app->operation;
+  my $mode = $app->mode;
+  my $api = $app->openapi;
+  my $ua = $api->ua;
 
   if ( $operation =~ /^(add|update|delete)/mi ) {
 
-    if ( ! exists $params{resource_id} ) {
-      $params{resource_id} = $config->resource;
-      $app->log_debug( _kv( "APP.RESOURCE_FROM_CONFIG", $params{resource_id} ) );
-    }
-
-    if ( $mode eq 'head' or $mode eq 'daily' ) {
+    if ( $mode eq 'head' or $mode eq 'daily' or $mode eq 'beta' ) {
       # login
       my $client_params = $app->config->as_oauth_hashref;
 
@@ -227,6 +232,8 @@ sub run {
       }
       my $access_token = $tx->res->json->{access_token} // '';
 
+      $app->log_info( "Adding auth token to headers: $access_token" );
+
       # add the access token to every subsequent request
       $ua->on(start => sub {
         my ($ua, $tx) = @_;
@@ -239,6 +246,28 @@ sub run {
       die "! Error: the operation '$operation' will try to modify the backend database. Only 'read' operations are allowed in server mode '$mode' (try --mode=daily or --mode=head)\n",
     }
   }
+}
+
+sub _build_params_per_uniprot {
+  my $app = shift;
+  my $operation = $app->operation;
+  my $config = $app->config;
+  
+  my %params = (
+    operation   => $app->operation,
+  );
+
+  $params{resource_id} = $app->resource_id if $app->has_resource_id;
+  $params{uniprot_acc} = $app->uniprot_acc if $app->has_uniprot_acc;
+
+  if ( $app->operation =~ /^(add|update|delete)/mi ) {
+    if ( ! exists $params{resource_id} ) {
+      $params{resource_id} = $config->resource;
+      $app->log_debug( _kv( "APP.RESOURCE_FROM_CONFIG", $params{resource_id} ) );
+    }
+  }
+
+  my %pdbfiles_by_uniprot;
   if( $app->batch ) {
     
     my $pdbdir =  @{ $app->pdbfiles }[0];
@@ -257,13 +286,13 @@ sub run {
     foreach my $pdbfile (@pdbfiles) {
       my $document = $pdbfile->slurp();
 
-      if ($document =~ /REMARK\s+GENOME3D\s+UNIPROT_ID\s+(\S+?)/) {
+      if ($document =~ /REMARK\s+GENOME3D\s+UNIPROT_ID\s+(\S+)/) {
         my $uni_acc = $1;
-        if(exists $pdb_batches->{ $uni_acc }) {
-          push @{$pdb_batches->{ $uni_acc }}, "$pdbfile";
+        if (exists $pdb_batches->{ $uni_acc }) {
+          push @{$pdbfiles_by_uniprot{ $uni_acc }}, "$pdbfile";
         }
         else {
-          $pdb_batches->{ $uni_acc } = ["$pdbfile"];
+          $pdbfiles_by_uniprot{ $uni_acc } = ["$pdbfile"];
         }
       }
       else {
@@ -271,20 +300,22 @@ sub run {
       }
       $file_count++;
     }
+  }
+  else {
+    $pdbfiles_by_uniprot{ $app->uniprot_acc } = $app->pdbfiles;
+  }
 
-    #loop over the hash and send the data to the server
-    foreach my $uniprot (keys %$pdb_batches) {
-      $params{ uniprot_acc } = $uniprot;
-      $params{ pdbfiles } = [ map { { file => $_ } } @{ $pdb_batches->{$uniprot} } ];
-      $app->_send_data(\%params);
-    }
+  my %params_per_uniprot;
+  foreach my $uniprot_acc (keys %pdbfiles_by_uniprot ) {
+    my $pdbfiles = $pdbfiles_by_uniprot{ $uniprot_acc };
+    $params_per_uniprot{ $uniprot_acc } = { 
+      uniprot_acc => $uniprot_acc,
+      pdbfiles => [ map { { file => $_ } } @{ $pdbfiles } ],
+      ( %params ), 
+    };
   }
-  else{
-      if ( $app->has_pdbfiles ) {
-      $params{ pdbfiles } = [ map { { file => $_ } } @{ $app->pdbfiles } ];
-      }
-      $app->_send_data(\%params);
-  }
+
+  return \%params_per_uniprot;
 }
 
 sub _send_data {
@@ -334,15 +365,22 @@ sub _send_data {
     }
 
     if ( $tx->res->is_error ) {
-      warn sprintf( "[%d] ERROR: %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 250 ) );
-      return;
+      my $msg = sprintf( "[%d] %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 250 ) );
+      if ( $app->batch ) {
+        $app->log_warn( "WARNING: $msg" );
+        die( "ERROR: $msg" );
+      }
+      else {
+        $app->log_error( "ERROR: $msg" );
+        die( "ERROR: $msg" );
+      }
     }
     else {
       my $body = decode_json( $tx->res->body );
       if ( ref $body eq 'HASH' ) {
         $app->log_info( _kv( "RESPONSE.MESSAGE", $body->{message} ) );
         if ( $app->out_format =~ /^json/i ) {
-          $app->log_info( _kv( "RESPONSE.DATA", $app->json_out->encode( $body->{data} ) ) );
+          $app->log_info( _kv( "RESPONSE.DATA", $body->{data} ? $app->json_out->encode( $body->{data} ) : '<empty>' ) );
         }
       }
       else {
