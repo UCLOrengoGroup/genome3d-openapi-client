@@ -181,10 +181,13 @@ if ( -e $sfam_conf_file ) {
 
     my $base_args = "--mode=daily -r $resource_id -u $uniprot_acc --conf=$sfam_conf_file";
     local @ARGV = split( /\s+/, "$base_args -o updateStructurePrediction " . join( " ", map { "--pdbfiles=$_" } @pdb_files ) );
+    diag( "RUNNING: ./genome3d-api " . join( " ", @ARGV ) . "\n" );
     my $c = Genome3D::Api::Client->new_with_options();
     my $result = trap { $c->run };
-    is( $trap->leaveby, 'return', 'updateStructurePrediction (non core-dataset uniprot entry) exited okay' );
-    like( $trap->stderr, qr{\[400\] ERROR}i, 'updateStructurePrediction (non core-dataset uniprot entry) STDERR contained 400 "error"' );
+    # warn "stdout: " . $trap->stdout;
+    # warn "stderr: " . $trap->stderr;
+    is( $trap->leaveby, 'die', 'updateStructurePrediction (non core-dataset uniprot entry) exited okay' );
+    like( $trap->stdout, qr{ERROR: \[400\]}i, 'updateStructurePrediction (non core-dataset uniprot entry) STDERR contained 400 "error"' );
   } 
 }
 
