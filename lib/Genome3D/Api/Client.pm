@@ -81,7 +81,10 @@ option quiet       => ( is => 'ro', short => 'q', doc => "output fewer details",
 option verbose     => ( is => 'ro', short => 'v', doc => "output more details",
   order => 60 );
 
-option batch       => ( is => 'ro', short => 'b', doc => "Interpret --pdbfiles as directory",
+option batch       => ( is => 'ro', short => 'b', doc => "interpret --pdbfiles as directory",
+  order => 30);
+
+option pdb_suffix  => ( is => 'ro', default => '.pdb', doc => "only process pdb files with this suffix (batch mode) [.pdb]",
   order => 30);
 
 sub _build_conf {
@@ -146,6 +149,15 @@ sub run {
     $app->log_level( $app->log_level + 1 );
   }
 
+  if ( $app->batch ) {
+    die "! Error: uniprot_acc should not be specified when batch mode is set "
+        . "(uniprot accession is parsed from the input files in batch mode)"
+        if $app->uniprot_acc;
+
+    die "! Error: --pdbfiles is a required parameter for batch mode"
+        unless $app->has_pdbfiles;
+  }
+
   my $config = $app->config;
 
   trap { $app->openapi->validator };
@@ -185,9 +197,10 @@ sub run {
 
   my %params = (
     operation   => $operation,
-    uniprot_acc => $app->uniprot_acc,
-    ($app->has_resource_id ? ( resource_id => $app->resource_id ) : () ),
   );
+
+  $params{resource_id} = $app->resource_id if $app->has_resource_id;
+  $params{uniprot_acc} = $app->uniprot_acc if $app->has_uniprot_acc;
 
   if ( $operation =~ /^(add|update|delete)/mi ) {
 
@@ -226,55 +239,45 @@ sub run {
       die "! Error: the operation '$operation' will try to modify the backend database. Only 'read' operations are allowed in server mode '$mode' (try --mode=daily or --mode=head)\n",
     }
   }
-  if( $app->batch) {
-
-    if ( $app->has_pdbfiles ) {
-      my $pdbdir =  @{ $app->pdbfiles }[0];
-      if( -d $pdbdir) {
-        opendir(D, "$pdbdir") || die "Can't open directory $pdbdir: $!\n";
-        my @list = readdir(D);
-        closedir(D);
-
-        my $file_count = 0;
-        my $pdb_batches = {};
-        # loop over the directory of files and push them all in to a huge hashtable
-        foreach my $pdbfile (@list) {
-            if($pdbfile =~ /^\./) { next; }
-            my $document = do {
-              local $/ = undef;
-              open my $fh, "<", $pdbdir.$pdbfile
-                or die "could not open $pdbdir.$pdbfile: $!";
-              <$fh>;
-            };
-
-            if($document =~ /REMARK\sGENOME3D\sUNIPROT_ID\s(.+?)\n/) {
-              if(exists $pdb_batches->{ $1 }) {
-                push @{$pdb_batches->{ $1 }}, $pdbdir.$pdbfile;
-              }
-              else {
-                $pdb_batches->{ $1 } = [$pdbdir.$pdbfile];
-              }
-            }
-            $file_count++;
-        }
-        #loop over the hash and send the data to the server
-        foreach my $uniprot (keys $pdb_batches) {
-          $params{ uniprot_acc } = $uniprot;
-          $params{ pdbfiles } = [ map { { file => $_ } } @{ $pdb_batches->{$uniprot} } ];
-          $app->_send_data(\%params);
-        }
-
-      }
-      else {
-        $app->log_error( "--pdbfiles must be a directory in batch mode" );
-        exit(1);
-      }
-    }
-    else {
-      $app->log_error( "--pdbfiles is a required parameter for batch mode" );
+  if( $app->batch ) {
+    
+    my $pdbdir =  @{ $app->pdbfiles }[0];
+    if( ! -d $pdbdir) {
+      $app->log_error( "--pdbfiles must be a directory in batch mode" );
       exit(1);
     }
-    exit();
+
+    # all files in this directory matching the suffix *.pdb
+    my @pdbfiles = grep { substr($_, -length($app->pdb_suffix)) eq $app->pdb_suffix } 
+      path($pdbdir)->children();
+
+    my $file_count = 0;
+    my $pdb_batches = {};
+    # loop over the directory of files and push them all in to a huge hashtable
+    foreach my $pdbfile (@pdbfiles) {
+      my $document = $pdbfile->slurp();
+
+      if ($document =~ /REMARK\s+GENOME3D\s+UNIPROT_ID\s+(\S+?)/) {
+        my $uni_acc = $1;
+        if(exists $pdb_batches->{ $uni_acc }) {
+          push @{$pdb_batches->{ $uni_acc }}, "$pdbfile";
+        }
+        else {
+          $pdb_batches->{ $uni_acc } = ["$pdbfile"];
+        }
+      }
+      else {
+        die "! Error: failed to parse UNIPROT_ID from REMARK comments in file: '$pdbfile'";
+      }
+      $file_count++;
+    }
+
+    #loop over the hash and send the data to the server
+    foreach my $uniprot (keys %$pdb_batches) {
+      $params{ uniprot_acc } = $uniprot;
+      $params{ pdbfiles } = [ map { { file => $_ } } @{ $pdb_batches->{$uniprot} } ];
+      $app->_send_data(\%params);
+    }
   }
   else{
       if ( $app->has_pdbfiles ) {
