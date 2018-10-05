@@ -1,0 +1,13 @@
+Revision history for Genome3D-Api-Client
+
+v0.04    2018-10-05
+  - add option for batch results (thanks @DanBuchan) (#8, #11)
+
+v0.03    2018-07-25
+  - improve error message on bad operation names (thanks @arunpandu)
+
+v0.02    2018-07-23
+  - correct backend issue causing permission error on inserts (thanks @arunpandu)
+
+v0.01    2018-06-04
+  - first release
