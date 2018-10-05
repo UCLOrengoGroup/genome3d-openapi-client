@@ -12,7 +12,7 @@ use Type::Utils -all;
 use Types::Standard -types;
 
 declare ServerMode,
-  as enum( [qw/ head daily release /] );
+  as enum( [qw/ head daily release beta /] );
 
 declare OutputFormat,
   as enum( [qw/ json json_pp /] );
