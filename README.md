@@ -184,6 +184,7 @@ appropriate permissions to add/update/delete data). See the [authentication sect
  * Ian Sillitoe (author)
  * Gerardo Tauriello
  * Arun Prasad Pandurangan
+ * Daniel Buchan
 
 ## Acknowledgements
 
