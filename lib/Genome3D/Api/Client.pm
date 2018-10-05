@@ -30,7 +30,7 @@ use DDP;
 use Genome3D::Api::Client::Config;
 use Genome3D::Api::Client::Types qw/ ServerMode OutputFormat /;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 # this is used to find the root directory of this mojo project
 my $API_SCRIPT_FILENAME = 'genome3d-api';
@@ -50,10 +50,10 @@ sub _build_json_out {
   return JSON::MaybeXS->new( %args );
 }
 
-option mode        => ( is => 'ro',               format => 's',  isa => ServerMode, predicate => 1, default => "daily", doc => "specify the mode for the data source\t(daily|head|release) [daily]", 
+option mode        => ( is => 'ro',               format => 's',  isa => ServerMode, predicate => 1, default => "daily", doc => "specify the mode for the data source\t(daily|head|release) [daily]",
   order => 10, spacer_after => 1 );
 
-option list        => ( is => 'ro', short => 'l', doc => "list all the available operations", 
+option list        => ( is => 'ro', short => 'l', doc => "list all the available operations",
   order => 20, spacer_after => 1 );
 
 option operation   => ( is => 'ro', short => 'o', format => 's',  predicate => 1, doc => "specify operation (eg 'listResources')",
@@ -73,14 +73,16 @@ option conf        => ( is => 'lazy',             format => 's',  predicate => 1
   order => 50 );
 option host        => ( is => 'lazy',             format => 's',  predicate => 1, doc => "override the default host (eg 'localhost:5000')",
   order => 50, spacer_after => 1 );
-option out_format  => ( is => 'lazy',             format => 's',  isa => OutputFormat, default => 'json', doc => 'override the output format ([json_pp] | json)', 
+option out_format  => ( is => 'lazy',             format => 's',  isa => OutputFormat, default => 'json', doc => 'override the output format ([json_pp] | json)',
   order => 50, hidden => 1 );
 
 option quiet       => ( is => 'ro', short => 'q', doc => "output fewer details",
-  order => 60 ); 
+  order => 60 );
 option verbose     => ( is => 'ro', short => 'v', doc => "output more details",
-  order => 60 ); 
+  order => 60 );
 
+option batch       => ( is => 'ro', short => 'b', doc => "Interpret --pdbfiles as directory",
+  order => 30);
 
 sub _build_conf {
   my $self = shift;
@@ -224,57 +226,130 @@ sub run {
       die "! Error: the operation '$operation' will try to modify the backend database. Only 'read' operations are allowed in server mode '$mode' (try --mode=daily or --mode=head)\n",
     }
   }
+  if( $app->batch) {
 
-  if ( $app->has_xmlfile ) {
-    my $xml_file = $app->xmlfile;
-    $params{ xmlfile } = [ { file => $xml_file } ];
-  }
-  if ( $app->has_pdbfiles ) {
-    $params{ pdbfiles } = [ map { { file => $_ } } @{ $app->pdbfiles } ];
-  }
+    if ( $app->has_pdbfiles ) {
+      my $pdbdir =  @{ $app->pdbfiles }[0];
+      if( -d $pdbdir) {
+        opendir(D, "$pdbdir") || die "Can't open directory $pdbdir: $!\n";
+        my @list = readdir(D);
+        closedir(D);
 
-  $app->log_info( _kv( "REQUEST.OPERATION", $operation ) );
-  $app->log_info( _kv( "REQUEST.DATA", JSON::MaybeXS->new( utf8 => 1, pretty => 0 )->encode( \%params ) ) );
+        my $file_count = 0;
+        my $pdb_batches = {};
+        # loop over the directory of files and push them all in to a huge hashtable
+        foreach my $pdbfile (@list) {
+            if($pdbfile =~ /^\./) { next; }
+            my $document = do {
+              local $/ = undef;
+              open my $fh, "<", $pdbdir.$pdbfile
+                or die "could not open $pdbdir.$pdbfile: $!";
+              <$fh>;
+            };
 
-  my $tx = try { $api->$operation( \%params ) }
-  catch {
-    if ( $_ =~ /can't locate object method/i ) {
-      $app->log_error( "ERROR: '$operation' is not a valid operation name (use --list to provide a list of available operations)" );
-    }
-    else {
-      $app->log_error( "ERROR: $_" );
-    }
-    exit(1);
-  };
+            if($document =~ /REMARK\sGENOME3D\sUNIPROT_ID\s(.+?)\n/) {
+              if(exists $pdb_batches->{ $1 }) {
+                push @{$pdb_batches->{ $1 }}, $pdbdir.$pdbfile;
+              }
+              else {
+                $pdb_batches->{ $1 } = [$pdbdir.$pdbfile];
+              }
+            }
+            $file_count++;
+        }
+        #loop over the hash and send the data to the server
+        foreach my $uniprot (keys $pdb_batches) {
+          $params{ uniprot_acc } = $uniprot;
+          $params{ pdbfiles } = [ map { { file => $_ } } @{ $pdb_batches->{$uniprot} } ];
+          $app->_send_data(\%params);
+        }
 
-  $app->log_info( _kv( "REQUEST.URL", $tx->req->url ) );
-
-  $app->log_debug( "REQUEST.PARAMS:   " . $tx->req->params->to_string );
-  $app->log_debug( "REQUEST.BODY:     " . $tx->req->body );
-  $app->log_debug( "REQUEST.HEADERS:  " . $tx->req->headers->to_string );
-  $app->log_debug( "RESPONSE.CODE:    " . $tx->res->code );
-  $app->log_debug( "RESPONSE.MESSAGE: " . $tx->res->message );
-  $app->log_debug( "RESPONSE.BODY:    " . $tx->res->body );
-
-  if ( $tx->res->is_error ) {
-    warn sprintf( "[%d] ERROR: %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 250 ) );
-    return;
-  }
-  else {
-    my $body = decode_json( $tx->res->body );
-    if ( ref $body eq 'HASH' ) {
-      $app->log_info( _kv( "RESPONSE.MESSAGE", $body->{message} ) );  
-      if ( $app->out_format =~ /^json/i ) {
-        $app->log_info( _kv( "RESPONSE.DATA", $app->json_out->encode( $body->{data} ) ) );
+      }
+      else {
+        $app->log_error( "--pdbfiles must be a directory in batch mode" );
+        exit(1);
       }
     }
     else {
-      $app->log_info( _kv( "RESPONSE.MESSAGE", "Response did not contain 'message' field" ) );
-      $app->log_info( _kv( "RESPONSE.BODY", substr( $body, 0, 50 ) . ' ...' ) );
+      $app->log_error( "--pdbfiles is a required parameter for batch mode" );
+      exit(1);
     }
-    return $body;
+    exit();
+  }
+  else{
+      if ( $app->has_pdbfiles ) {
+      $params{ pdbfiles } = [ map { { file => $_ } } @{ $app->pdbfiles } ];
+      }
+      $app->_send_data(\%params);
   }
 }
+
+sub _send_data {
+  my $self = shift;
+  my $app = $self;
+  my $api = $self->openapi;
+  my $operation = $self->operation;
+  my $params = shift;
+  my %params = %$params;
+
+    if ( $app->has_xmlfile ) {
+      my $xml_file = $app->xmlfile;
+      $params{ xmlfile } = [ { file => $xml_file } ];
+    }
+    # if ( $app->has_pdbfiles ) {
+    #   $params{ pdbfiles } = [ map { { file => $_ } } @{ $app->pdbfiles } ];
+    # }
+
+
+    $app->log_info( _kv( "REQUEST.OPERATION", $operation ) );
+    $app->log_info( _kv( "REQUEST.DATA", JSON::MaybeXS->new( utf8 => 1, pretty => 0 )->encode( \%params ) ) );
+
+    my $tx = try { $api->$operation( \%params ) }
+    catch {
+      if ( $_ =~ /can't locate object method/i ) {
+        $app->log_error( "ERROR: '$operation' is not a valid operation name (use --list to provide a list of available operations)" );
+      }
+      else {
+        $app->log_error( "ERROR: $_" );
+      }
+      exit(1);
+    };
+
+    $app->log_info( _kv( "REQUEST.URL", $tx->req->url ) );
+
+    $app->log_debug( "REQUEST.PARAMS:   " . $tx->req->params->to_string );
+    $app->log_debug( "REQUEST.BODY:     " . $tx->req->body );
+    $app->log_debug( "REQUEST.HEADERS:  " . $tx->req->headers->to_string );
+    $app->log_debug( "RESPONSE.CODE:    " . $tx->res->code );
+    $app->log_debug( "RESPONSE.MESSAGE: " . $tx->res->message );
+    $app->log_debug( "RESPONSE.BODY:    " . $tx->res->body );
+
+    if ( $app->batch ) {
+      open(my $fhlog, '>>', 'batch.log') or die "Could not open file batch.log $!";
+      say $fhlog $params{ uniprot_acc }." : ".$tx->res->code." : ".$tx->res->message;
+      close $fhlog;
+    }
+
+    if ( $tx->res->is_error ) {
+      warn sprintf( "[%d] ERROR: %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 250 ) );
+      return;
+    }
+    else {
+      my $body = decode_json( $tx->res->body );
+      if ( ref $body eq 'HASH' ) {
+        $app->log_info( _kv( "RESPONSE.MESSAGE", $body->{message} ) );
+        if ( $app->out_format =~ /^json/i ) {
+          $app->log_info( _kv( "RESPONSE.DATA", $app->json_out->encode( $body->{data} ) ) );
+        }
+      }
+      else {
+        $app->log_info( _kv( "RESPONSE.MESSAGE", "Response did not contain 'message' field" ) );
+        $app->log_info( _kv( "RESPONSE.BODY", substr( $body, 0, 50 ) . ' ...' ) );
+      }
+      return $body;
+    }
+}
+
 
 sub _kv {
   sprintf( "%-30s %s", @_ );
