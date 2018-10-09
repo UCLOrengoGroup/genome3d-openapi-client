@@ -186,7 +186,7 @@ if ( -e $sfam_conf_file ) {
     my $result = trap { $c->run };
     # warn "stdout: " . $trap->stdout;
     # warn "stderr: " . $trap->stderr;
-    is( $trap->leaveby, 'die', 'updateStructurePrediction (non core-dataset uniprot entry) exited okay' );
+    is( $trap->leaveby, 'return', 'updateStructurePrediction (non core-dataset uniprot entry) exited okay' );
     like( $trap->stdout, qr{ERROR: \[400\]}i, 'updateStructurePrediction (non core-dataset uniprot entry) STDERR contained 400 "error"' );
   } 
 }

@@ -396,8 +396,10 @@ sub _send_data {
 
   my $uniprot_acc = $params{uniprot_acc} // '<no_uniprot>';
 
-  my $msg = sprintf( "%-20s %-20s [%s: %s]", 
-      $operation, $uniprot_acc, $tx->res->code, $tx->res->message,
+  my $response_text = try { decode_json( $tx->res->body )->{message} } catch { '' };
+
+  my $msg = sprintf( "%-25s %-15s [%s: %s] \"%s\"", 
+      $operation, $uniprot_acc, $tx->res->code, $tx->res->message, $response_text,
     );
 
   if ( $tx->res->is_error ) {
@@ -414,8 +416,7 @@ sub _send_data {
   }
 
   if ( $tx->res->is_error ) {
-    my $body = try { decode_json( $tx->res->body )->{message} } catch { $tx->res->body };
-    my $msg = sprintf( "[%d] %s (%s...)\n", $tx->res->code, $tx->res->message, $body );
+    my $msg = sprintf( "[%d] %s (%s...)\n", $tx->res->code, $tx->res->message, $response_text || $tx->res->body );
     die( "ERROR: $msg" );
   }
   else {
