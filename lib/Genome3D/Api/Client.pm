@@ -27,6 +27,7 @@ use Try::Tiny;
 use Test::Trap;
 use Term::ANSIColor;
 use DDP;
+use Storable 'dclone';
 
 use Genome3D::Api::Client::Config;
 use Genome3D::Api::Client::Types qw/ ServerMode OutputFormat /;
@@ -68,6 +69,17 @@ option pdbfiles    => ( is => 'ro',               format => 's@', predicate => 1
 option xmlfile     => ( is => 'ro',               format => 's',  predicate => 1, doc => 'specify xml file for domain prediction',
   order => 30, spacer_after => 1 );
 
+option batch       => ( is => 'ro', short => 'b', doc => "interpret --pdbfiles as directory",
+  order => 40);
+option pdb_suffix  => ( is => 'ro', default => '.pdb', doc => "only process pdb files with this suffix [.pdb]",
+  order => 41);
+option retry_on_failure => ( is => 'ro', default => 3, 
+  doc => "number of times to retry an operation before quitting [3]",
+  order => 41, spacer_after => 1 );
+option allowed_consecutive_failures => ( is => 'ro', default => 10, 
+  doc => "quit if we encounter this many consecutive errors [10]",
+  order => 41 );
+
 option base_path   => ( is => 'ro',               format => 's',  default => '/api', doc => "override the default base path [/api])",
   order => 50 );
 option conf        => ( is => 'lazy',             format => 's',  predicate => 1, doc => 'override the default config file [client_config.json]',
@@ -78,16 +90,11 @@ option out_format  => ( is => 'lazy',             format => 's',  isa => OutputF
   order => 50, hidden => 1 );
 
 option quiet       => ( is => 'ro', short => 'q', doc => "output fewer details",
-  order => 60 );
+  order => 80 );
 option verbose     => ( is => 'ro', short => 'v', doc => "output more details",
+  order => 80 );
 option colour      => ( is => 'ro', doc => "output in colour",
   order => 80 );
-
-option batch       => ( is => 'ro', short => 'b', doc => "interpret --pdbfiles as directory",
-  order => 30);
-
-option pdb_suffix  => ( is => 'ro', default => '.pdb', doc => "only process pdb files with this suffix (batch mode) [.pdb]",
-  order => 30);
 
 sub _build_conf {
   my $self = shift;
@@ -199,9 +206,48 @@ sub run {
 
   my $params_per_uniprot = $app->_build_params_per_uniprot();
 
-  foreach my $uniprot_acc (keys %$params_per_uniprot ) {
+  my $consecutive_failures=0;
+
+  UNIPROT: for my $uniprot_acc (sort keys %$params_per_uniprot) {
+
     my $params = $params_per_uniprot->{ $uniprot_acc };
-    $app->_send_data( $params );
+
+    my $success = 0;
+    my $try_count = 1;
+    while (! $success) {
+      my $next_uniprot=0;
+      try {
+        $app->log_debug(sprintf "Sending data for uniprot '%s': try (%d of %d)", $uniprot_acc, $try_count, $app->retry_on_failure );
+          
+        # create a deep copy to avoid issues with files not being includes on retry
+        my $params_copy = dclone $params;
+        #$app->log_debug( _kv("params", np($params_copy)) );
+        $app->_send_data( $params_copy );
+        $success=1;
+        $consecutive_failures=0;
+      }
+      catch {
+        # report first line of error message
+        my ($message) = map { "$_..." } split(/\n/, $_);        
+        $app->log_warn("Caught error while processing UniProt record '$uniprot_acc' ($message)");
+        $try_count += 1;
+        if ( $try_count <= $app->retry_on_failure ) {
+          $app->log_warn(sprintf "Failed UNIPROT '%s': retry (%d of %d)", $uniprot_acc, $try_count, $app->retry_on_failure );
+        }
+        else {
+          $consecutive_failures += 1;
+          if ( $consecutive_failures > $app->allowed_consecutive_failures ) {
+            my $msg = sprintf("Failed more than %d UniProt records in a row; something horrible has probably happened. I'm quitting. You should leave while you still can.",
+              $app->allowed_consecutive_failures);
+            $app->log_error($msg);
+            die $msg;
+          }
+          $app->log_error("Skipping UNIPROT '$uniprot_acc'");
+          $next_uniprot = 1;
+        }
+      };
+      next UNIPROT if $next_uniprot;
+    }
   }
   $app->log_info( "DONE" );
 }
@@ -234,7 +280,7 @@ sub _setup_headers {
       }
       my $access_token = $tx->res->json->{access_token} // '';
 
-      $app->log_info( "Adding auth token to headers: $access_token" );
+      $app->log_debug( "Adding auth token to headers: $access_token" );
 
       # add the access token to every subsequent request
       $ua->on(start => sub {
@@ -303,7 +349,7 @@ sub _build_params_per_uniprot {
   }
 
   my %params_per_uniprot;
-  foreach my $uniprot_acc (keys %pdbfiles_by_uniprot ) {
+  foreach my $uniprot_acc (sort keys %pdbfiles_by_uniprot ) {
     my $pdbfiles = $pdbfiles_by_uniprot{ $uniprot_acc };
     $params_per_uniprot{ $uniprot_acc } = { 
       uniprot_acc => $uniprot_acc,
@@ -323,74 +369,72 @@ sub _send_data {
   my $params = shift;
   my %params = %$params;
 
-    if ( $app->has_xmlfile ) {
-      my $xml_file = $app->xmlfile;
-      $params{ xmlfile } = [ { file => $xml_file } ];
+  if ( $app->has_xmlfile ) {
+    my $xml_file = $app->xmlfile;
+    $params{ xmlfile } = [ { file => $xml_file } ];
+  }
+
+  $app->log_debug( _kv( "REQUEST.OPERATION", $operation ) );
+  $app->log_debug( _kv( "REQUEST.DATA", JSON::MaybeXS->new( utf8 => 1, pretty => 0 )->encode( \%params ) ) );
+
+  my $tx = try { $api->$operation( \%params ) }
+  catch {
+    if ( $_ =~ /can't locate object method/i ) {
+      $app->log_error( "ERROR: '$operation' is not a valid operation name (use --list to provide a list of available operations)" );
     }
-    # if ( $app->has_pdbfiles ) {
-    #   $params{ pdbfiles } = [ map { { file => $_ } } @{ $app->pdbfiles } ];
-    # }
-
-
-    $app->log_info( _kv( "REQUEST.OPERATION", $operation ) );
-    $app->log_info( _kv( "REQUEST.DATA", JSON::MaybeXS->new( utf8 => 1, pretty => 0 )->encode( \%params ) ) );
-
-    my $tx = try { $api->$operation( \%params ) }
-    catch {
-      if ( $_ =~ /can't locate object method/i ) {
-        $app->log_error( "ERROR: '$operation' is not a valid operation name (use --list to provide a list of available operations)" );
-      }
-      else {
-        $app->log_error( "ERROR: $_" );
-      }
-      exit(1);
-    };
-
-    $app->log_info( _kv( "REQUEST.URL", $tx->req->url ) );
-
-    $app->log_debug( "REQUEST.PARAMS:   " . $tx->req->params->to_string );
-    $app->log_debug( "REQUEST.BODY:     " . $tx->req->body );
-    $app->log_debug( "REQUEST.HEADERS:  " . $tx->req->headers->to_string );
-    $app->log_debug( "RESPONSE.CODE:    " . $tx->res->code );
-    $app->log_debug( "RESPONSE.MESSAGE: " . $tx->res->message );
-    $app->log_debug( "RESPONSE.BODY:    " . $tx->res->body );
-
-    if ( $app->batch ) {
-      open(my $fhlog, '>>', 'batch.log') or die "Could not open file batch.log $!";
-      say $fhlog $params{ uniprot_acc }." : ".$tx->res->code." : ".$tx->res->message;
-      close $fhlog;
+    else {
+      $app->log_error( "ERROR: $_" );
     }
+    exit(1);
+  };
 
-    if ( $tx->res->is_error ) {
-      my $msg = sprintf( "[%d] %s (%s...)\n", $tx->res->code, $tx->res->message, substr( $tx->res->body, 0, 250 ) );
-      if ( $app->batch ) {
-        $app->log_warn( "WARNING: $msg" );
-        die( "ERROR: $msg" );
-      }
-      else {
-        $app->log_error( "ERROR: $msg" );
-        die( "ERROR: $msg" );
+  $app->log_debug( _kv( "REQUEST.URL", $tx->req->url ) );
+  $app->log_trace( _kv( "REQUEST.HEADERS", $tx->req->headers->to_string ) );
+  $app->log_debug( _kv( "RESPONSE.CODE", $tx->res->code ) );
+  $app->log_debug( _kv( "RESPONSE.MESSAGE", $tx->res->message ) );
+  $app->log_trace( _kv( "RESPONSE.BODY", $tx->res->body ) );
+
+  my $uniprot_acc = $params{uniprot_acc} // '<no_uniprot>';
+
+  my $msg = sprintf( "%-20s %-20s [%s: %s]", 
+      $operation, $uniprot_acc, $tx->res->code, $tx->res->message,
+    );
+
+  if ( $tx->res->is_error ) {
+    $app->log_warn("REQUEST: $msg");
+  }
+  else {
+    $app->log_info("REQUEST: $msg");
+  }
+
+  if ( $app->batch ) {
+    open(my $fhlog, '>>', 'batch.log') or die "Could not open file batch.log $!";
+    say $fhlog $params{ uniprot_acc }." : ".$tx->res->code." : ".$tx->res->message;
+    close $fhlog;
+  }
+
+  if ( $tx->res->is_error ) {
+    my $body = try { decode_json( $tx->res->body )->{message} } catch { $tx->res->body };
+    my $msg = sprintf( "[%d] %s (%s...)\n", $tx->res->code, $tx->res->message, $body );
+    die( "ERROR: $msg" );
+  }
+  else {
+    my $body = decode_json( $tx->res->body );
+    if ( ref $body eq 'HASH' ) {
+      if ( $app->out_format =~ /^json/i ) {
+        $app->log_debug( _kv( "RESPONSE.DATA", $body->{data} ? $app->json_out->encode( $body->{data} ) : '<empty>' ) );
       }
     }
     else {
-      my $body = decode_json( $tx->res->body );
-      if ( ref $body eq 'HASH' ) {
-        $app->log_info( _kv( "RESPONSE.MESSAGE", $body->{message} ) );
-        if ( $app->out_format =~ /^json/i ) {
-          $app->log_info( _kv( "RESPONSE.DATA", $body->{data} ? $app->json_out->encode( $body->{data} ) : '<empty>' ) );
-        }
-      }
-      else {
-        $app->log_info( _kv( "RESPONSE.MESSAGE", "Response did not contain 'message' field" ) );
-        $app->log_info( _kv( "RESPONSE.BODY", substr( $body, 0, 50 ) . ' ...' ) );
-      }
-      return $body;
+      $app->log_debug( _kv( "RESPONSE.BODY", substr( $body, 0, 50 ) . ' ...' ) );
     }
+    return $body;
+  }
 }
 
 
 sub _kv {
-  sprintf( "%-30s %s", @_ );
+  sprintf( "%-30s %s", $_[0], $_[1] // '-' );
 }
 
 # https://metacpan.org/source/JHTHORSEN/OpenAPI-Client-0.15/lib/OpenAPI/Client.pm#L86
