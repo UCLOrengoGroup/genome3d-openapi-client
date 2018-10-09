@@ -25,6 +25,7 @@ use OpenAPI::Client;
 use Path::Tiny;
 use Try::Tiny;
 use Test::Trap;
+use Term::ANSIColor;
 use DDP;
 
 use Genome3D::Api::Client::Config;
@@ -79,7 +80,8 @@ option out_format  => ( is => 'lazy',             format => 's',  isa => OutputF
 option quiet       => ( is => 'ro', short => 'q', doc => "output fewer details",
   order => 60 );
 option verbose     => ( is => 'ro', short => 'v', doc => "output more details",
-  order => 60 );
+option colour      => ( is => 'ro', doc => "output in colour",
+  order => 80 );
 
 option batch       => ( is => 'ro', short => 'b', doc => "interpret --pdbfiles as directory",
   order => 30);
@@ -422,9 +424,14 @@ sub log_trace { (shift)->log_msg( 1, @_ ) }
 
 sub log_msg {
   my ($self, $level, $msg) = @_;
+  my @colours = ('grey5', 'grey10', 'green', 'yellow', 'red');
   my @levels = qw/ trace debug info warn error /;
   if ( $level >= $self->log_level ) {
-    printf "%s %6s | %s\n", localtime() . "", uc( $levels[$level-1] ), $msg;
+    $msg = sprintf( "%6s | %s", uc( $levels[$level-1] ), $msg );
+    if ( $self->colour ) {
+      $msg = colored($msg, $colours[$level-1]);
+    }
+    printf( "%s %s\n", localtime() . "", $msg );
   }
 }
 
