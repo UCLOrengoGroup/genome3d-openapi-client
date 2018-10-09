@@ -398,15 +398,15 @@ sub _send_data {
 
   my $response_text = try { decode_json( $tx->res->body )->{message} } catch { '' };
 
-  my $msg = sprintf( "%-25s %-15s [%s: %s] \"%s\"", 
-      $operation, $uniprot_acc, $tx->res->code, $tx->res->message, $response_text,
+  my $msg = sprintf( "%-25s %-15s [%s: %s]", 
+      $operation, $uniprot_acc, $tx->res->code, $tx->res->message,
     );
 
   if ( $tx->res->is_error ) {
     $app->log_warn("REQUEST: $msg");
   }
   else {
-    $app->log_info("REQUEST: $msg");
+    $app->log_info("REQUEST: $msg \"$response_text\"");
   }
 
   if ( $app->batch ) {
