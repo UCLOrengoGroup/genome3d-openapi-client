@@ -287,12 +287,8 @@ sub _build_params_per_uniprot {
 
       if ($document =~ /REMARK\s+GENOME3D\s+UNIPROT_ID\s+(\S+)/) {
         my $uni_acc = $1;
-        if (exists %pdbfiles_by_uniprot->{ $uni_acc }) {
-          push @{$pdbfiles_by_uniprot{ $uni_acc }}, "$pdbfile";
-        }
-        else {
-          $pdbfiles_by_uniprot{ $uni_acc } = ["$pdbfile"];
-        }
+        $pdbfiles_by_uniprot{ $uni_acc } //= [];
+        push @{ $pdbfiles_by_uniprot{ $uni_acc } }, "$pdbfile";
       }
       else {
         die "! Error: failed to parse UNIPROT_ID from REMARK comments in file: '$pdbfile'";
