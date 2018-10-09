@@ -25,7 +25,7 @@ use OpenAPI::Client;
 use Path::Tiny;
 use Try::Tiny;
 use Test::Trap;
-use Term::ANSIColor;
+use Term::ANSIColor qw/ /;
 use DDP;
 use Storable 'dclone';
 
@@ -93,8 +93,10 @@ option quiet       => ( is => 'ro', short => 'q', doc => "output fewer details",
   order => 80 );
 option verbose     => ( is => 'ro', short => 'v', doc => "output more details",
   order => 80 );
-option colour      => ( is => 'ro', doc => "output in colour",
+option colour      => ( is => 'ro', doc => "make the log reports more colourful",
   order => 80 );
+
+option color       => ( is => 'ro', hidden => 1 );
 
 sub _build_conf {
   my $self = shift;
@@ -151,6 +153,7 @@ sub _build_openapi {
 
 sub run {
   my $app = shift;
+
   if ( $app->verbose ) {
     $app->log_level( $app->log_level - 1 );
   }
@@ -473,8 +476,8 @@ sub log_msg {
   my @levels = qw/ trace debug info warn error /;
   if ( $level >= $self->log_level ) {
     $msg = sprintf( "%6s | %s", uc( $levels[$level-1] ), $msg );
-    if ( $self->colour ) {
-      $msg = colored($msg, $colours[$level-1]);
+    if ( $self->colour || $self->color ) {
+      $msg = Term::ANSIColor::colored($msg, $colours[$level-1]);
     }
     printf( "%s %s\n", localtime() . "", $msg );
   }
