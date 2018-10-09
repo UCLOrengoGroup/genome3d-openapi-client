@@ -281,14 +281,13 @@ sub _build_params_per_uniprot {
       path($pdbdir)->children();
 
     my $file_count = 0;
-    my $pdb_batches = {};
     # loop over the directory of files and push them all in to a huge hashtable
     foreach my $pdbfile (@pdbfiles) {
       my $document = $pdbfile->slurp();
 
       if ($document =~ /REMARK\s+GENOME3D\s+UNIPROT_ID\s+(\S+)/) {
         my $uni_acc = $1;
-        if (exists $pdb_batches->{ $uni_acc }) {
+        if (exists %pdbfiles_by_uniprot->{ $uni_acc }) {
           push @{$pdbfiles_by_uniprot{ $uni_acc }}, "$pdbfile";
         }
         else {
