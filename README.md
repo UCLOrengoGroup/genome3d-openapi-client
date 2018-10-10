@@ -179,6 +179,16 @@ $ cpan -i App::cpanminus
 Any operation that involves 'writing' data to the Genome3D server requires authentication (to prove you have 
 appropriate permissions to add/update/delete data). See the [authentication section](#authentication).
 
+### `perl: symbol lookup error: genome3d-openapi-client/extlib/lib/perl5/x86_64-linux-thread-multi/auto/Unicode/LineBreak/LineBreak.so: undefined symbol: Perl_xs_handshake`
+
+linebreak.so provided by perl the module Unicode::Linebreak which is bundled in the extlib. However this module has strict compatibilities with specific perl versions and after installing the extlib dependencies for the client you may still see this failure. You can resolve this by installing the package for your local perl version and removing the version bundled in the extlibs.
+
+```
+cpan -i Unicode::Linebreak
+rm -r extlib/lib/perl5/x86_64-linux-gnu-thread-multi/Unicode/
+rm -r extlib/lib/perl5/x86_64-linux-thread-multi/Unicode/
+```
+
 ## Contributors
 
  * Ian Sillitoe (author)
