@@ -69,7 +69,7 @@ option pdbfiles    => ( is => 'ro',               format => 's@', predicate => 1
 option xmlfile     => ( is => 'ro',               format => 's',  predicate => 1, doc => 'specify xml file for domain prediction',
   order => 30, spacer_after => 1 );
 
-option batch       => ( is => 'ro', short => 'b', doc => "interpret --pdbfiles as directory",
+option batch       => ( is => 'ro', short => 'b', doc => "interpret --pdbfiles or --xmlfile as directory",
   order => 40);
 option pdb_suffix  => ( is => 'ro', format => 's', default => '.pdb', doc => "(batch mode) only process pdb files with this suffix [.pdb]",
   order => 41);
@@ -171,8 +171,8 @@ sub run {
         . "(uniprot accession is parsed from the input files in batch mode)"
         if $app->uniprot_acc;
 
-    die "! Error: --pdbfiles is a required parameter for batch mode"
-        unless $app->has_pdbfiles;
+    die "! Error: batch mode requires --pdbfiles or --xmlfile"
+        if ( ! $app->has_pdbfiles && ! $app->has_xmlfile );
   }
 
   my $config = $app->config;
@@ -309,6 +309,9 @@ sub _build_params_per_uniprot {
   my $operation = $app->operation;
   my $config = $app->config;
   
+  my $is_domain_prediction    = $operation =~ /DomainPrediction$/i;
+  my $is_structure_prediction = $operation =~ /StructurePrediction$/i;
+
   my %params = (
     operation   => $app->operation,
   );
@@ -324,45 +327,96 @@ sub _build_params_per_uniprot {
   }
 
   my %pdbfiles_by_uniprot;
-  if( $app->batch ) {
-    
-    my $pdbdir =  @{ $app->pdbfiles }[0];
-    if( ! -d $pdbdir) {
-      $app->log_error( "--pdbfiles must be a directory in batch mode" );
-      exit(1);
+  my %xmlfile_by_uniprot;
+  my $file_count = 0;
+
+  if ($is_domain_prediction) {
+    if( $app->batch ) {
+      my $xmldir = $app->xmlfile;
+      if( ! -d $xmldir) {
+        $app->log_error( "--xmlfile must be a directory in batch mode" );
+        exit(1);
+      }
+
+      my $start_id = $app->has_batch_start_id ? $app->batch_start_id : undef;
+      my $found_start = $start_id ? 0 : 1;
+
+      $app->log_info( sprintf "Gathering xmlfile information from $xmldir %s... ", ($start_id ? "(starting at $start_id) " : "") );
+      my $iter = path($xmldir)->iterator;
+      while ( my $file = $iter->() ) {
+        my $fname = $file->basename();
+        next unless substr($fname, -length($app->xml_suffix)) eq $app->xml_suffix;
+        my $uniprot_acc;
+        # https://www.uniprot.org/help/accession_numbers
+        if ( $fname =~ /^([OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9]([A-Z][A-Z0-9]{2}[0-9]){1,2})/ ) {
+          $uniprot_acc = $1;
+        }
+        else {
+          $app->log_error( "error: failed to parse uniprot accession from file name '$fname'" );
+          exit(2);
+        }
+        if ( ! $found_start ) {
+            if ( $start_id eq $uniprot_acc ) {
+                $app->log_info("Found start id '$start_id'");
+                $found_start = 1;
+            }
+            else {
+                next;
+            }
+        }
+        $app->log_debug("file: $file -> $uniprot_acc" );
+        $xmlfile_by_uniprot{ $uniprot_acc } = "$file";
+        $file_count++;
+      }
+      $app->log_info( sprintf " ... found %s files", scalar keys %xmlfile_by_uniprot );
     }
-
-    # all files in this directory matching the suffix *.pdb
-    my @pdbfiles = grep { substr($_, -length($app->pdb_suffix)) eq $app->pdb_suffix } 
-      path($pdbdir)->children();
-
-    my $file_count = 0;
-    # loop over the directory of files and push them all in to a huge hashtable
-    foreach my $pdbfile (@pdbfiles) {
-      my $document = $pdbfile->slurp();
-
-      if ($document =~ /REMARK\s+GENOME3D\s+UNIPROT_ID\s+(\S+)/) {
-        my $uni_acc = $1;
-        $pdbfiles_by_uniprot{ $uni_acc } //= [];
-        push @{ $pdbfiles_by_uniprot{ $uni_acc } }, "$pdbfile";
-      }
-      else {
-        die "! Error: failed to parse UNIPROT_ID from REMARK comments in file: '$pdbfile'";
-      }
-      $file_count++;
+    else {
+      $xmlfile_by_uniprot{ $app->uniprot_acc } = $app->xmlfile;
     }
   }
-  else {
-    $pdbfiles_by_uniprot{ $app->uniprot_acc } = $app->pdbfiles;
+  elsif ($is_structure_prediction) {
+
+    if( $app->batch ) {
+      my $pdbdir =  @{ $app->pdbfiles }[0];
+      if( ! -d $pdbdir) {
+        $app->log_error( "--pdbfiles must be a directory in batch mode" );
+        exit(1);
+      }
+
+      # all files in this directory matching the suffix *.pdb
+      my @pdbfiles = grep { substr($_, -length($app->pdb_suffix)) eq $app->pdb_suffix } 
+        path($pdbdir)->children();
+
+      # loop over the directory of files and push them all in to a huge hashtable
+      foreach my $pdbfile (@pdbfiles) {
+        my $document = $pdbfile->slurp();
+
+        if ($document =~ /REMARK\s+GENOME3D\s+UNIPROT_ID\s+(\S+)/) {
+          my $uni_acc = $1;
+          $pdbfiles_by_uniprot{ $uni_acc } //= [];
+          push @{ $pdbfiles_by_uniprot{ $uni_acc } }, "$pdbfile";
+        }
+        else {
+          die "! Error: failed to parse UNIPROT_ID from REMARK comments in file: '$pdbfile'";
+        }
+        $file_count++;
+      }
+    }
+    else {
+      $pdbfiles_by_uniprot{ $app->uniprot_acc } = $app->pdbfiles;
+    }
   }
 
   my %params_per_uniprot;
-  foreach my $uniprot_acc (sort keys %pdbfiles_by_uniprot ) {
+  my %uniprot_accs = map { ($_ => 1) } keys %pdbfiles_by_uniprot, keys %xmlfile_by_uniprot;
+  foreach my $uniprot_acc (sort keys %uniprot_accs ) {
     my $pdbfiles = $pdbfiles_by_uniprot{ $uniprot_acc };
+    my $xmlfile = $xmlfile_by_uniprot{ $uniprot_acc };
     $params_per_uniprot{ $uniprot_acc } = { 
       uniprot_acc => $uniprot_acc,
-      pdbfiles => [ map { { file => $_ } } @{ $pdbfiles } ],
-      ( %params ), 
+      ($pdbfiles ? (pdbfiles => [ map { { file => $_ } } @{ $pdbfiles } ]) : ()),
+      ($xmlfile  ? (xmlfile  => [{ file => $xmlfile }]                   ) : ()),
+      ( %params ),
     };
   }
 
@@ -376,11 +430,6 @@ sub _send_data {
   my $operation = $self->operation;
   my $params = shift;
   my %params = %$params;
-
-  if ( $app->has_xmlfile ) {
-    my $xml_file = $app->xmlfile;
-    $params{ xmlfile } = [ { file => $xml_file } ];
-  }
 
   $app->log_debug( _kv( "REQUEST.OPERATION", $operation ) );
   $app->log_debug( _kv( "REQUEST.DATA", JSON::MaybeXS->new( utf8 => 1, pretty => 0 )->encode( \%params ) ) );
@@ -404,7 +453,9 @@ sub _send_data {
 
   my $uniprot_acc = $params{uniprot_acc} // '<no_uniprot>';
 
-  my $response_text = try { decode_json( $tx->res->body )->{message} } catch { '' };
+  my $response_text = try { decode_json( $tx->res->body )->{message} } catch { '[error]' };
+
+  $response_text //= '';
 
   my $msg = sprintf( "%-25s %-15s [%s: %s]", 
       $operation, $uniprot_acc, $tx->res->code, $tx->res->message,
