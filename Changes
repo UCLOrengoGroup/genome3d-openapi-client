@@ -1,5 +1,10 @@
 Revision history for Genome3D-Api-Client
 
+v0.05    2018-11-20
+  - allow batch mode for XML files
+  - retry on failure (#13)
+  - improved logs
+
 v0.04    2018-10-05
   - add option for batch results (thanks @DanBuchan) (#8, #11)
 

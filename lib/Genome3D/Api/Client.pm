@@ -32,7 +32,7 @@ use Storable 'dclone';
 use Genome3D::Api::Client::Config;
 use Genome3D::Api::Client::Types qw/ ServerMode OutputFormat /;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 # this is used to find the root directory of this mojo project
 my $API_SCRIPT_FILENAME = 'genome3d-api';
