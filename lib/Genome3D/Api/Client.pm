@@ -71,14 +71,19 @@ option xmlfile     => ( is => 'ro',               format => 's',  predicate => 1
 
 option batch       => ( is => 'ro', short => 'b', doc => "interpret --pdbfiles as directory",
   order => 40);
-option pdb_suffix  => ( is => 'ro', default => '.pdb', doc => "only process pdb files with this suffix [.pdb]",
+option pdb_suffix  => ( is => 'ro', format => 's', default => '.pdb', doc => "(batch mode) only process pdb files with this suffix [.pdb]",
   order => 41);
-option retry_on_failure => ( is => 'ro', default => 3, 
+option xml_suffix  => ( is => 'ro', format => 's', default => '.xml', doc => "(batch mode) only process xml files with this suffix [.xml]",
+  order => 41);
+option retry_on_failure => ( is => 'ro', format => 'i', default => 3,
   doc => "number of times to retry an operation before quitting [3]",
   order => 41, spacer_after => 1 );
-option allowed_consecutive_failures => ( is => 'ro', default => 10, 
+option allowed_consecutive_failures => ( is => 'ro', format => 'i', default => 10, 
   doc => "quit if we encounter this many consecutive errors [10]",
   order => 41 );
+
+option batch_start_id => (is => 'ro', format => 's', predicate => 1, doc => '(batch mode) skip all files until this uniprot accession',
+  order => 42);
 
 option base_path   => ( is => 'ro',               format => 's',  default => '/api', doc => "override the default base path [/api])",
   order => 50 );
